@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -82,6 +83,7 @@ public final class Chorus implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(Media.Begin.TYPE, (p, ctx) -> MediaStore.begin(ctx.player(), p));
         ServerPlayNetworking.registerGlobalReceiver(Media.Piece.TYPE, (p, ctx) -> MediaStore.piece(ctx.player(), p));
         ServerPlayNetworking.registerGlobalReceiver(Media.Fetch.TYPE, (p, ctx) -> MediaStore.fetch(ctx.player(), p));
+        ServerTickEvents.END_SERVER_TICK.register(MediaStore::tick);
         ServerPlayConnectionEvents.DISCONNECT.register((h, server) -> MediaStore.abort(h.getPlayer()));
     }
 

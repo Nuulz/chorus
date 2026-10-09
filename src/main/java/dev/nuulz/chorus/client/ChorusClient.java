@@ -16,6 +16,7 @@ public final class ChorusClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         ClientConfig.load();
+        FFmpeg.install();
         BlockEntityRendererRegistry.register(Chorus.SCREEN_ENTITY, ctx -> new ScreenRenderer());
         ScreenBlockEntity.clientLoaded = Screens::loaded;
         ScreenBlockEntity.clientUnloaded = Screens::unloaded;

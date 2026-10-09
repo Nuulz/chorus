@@ -33,6 +33,34 @@ final class MediaCache {
     private static final String TOKEN = HexFormat.of().formatHex(new SecureRandom().generateSeed(12));
     private static final Map<String, Entry> entries = new HashMap<>();
     private static HttpServer http;
+    private static final Map<String, Long> lastUse = new HashMap<>();
+    private static int ticks;
+
+    /** Once a minute: delete cached videos no live screen has used for five minutes. */
+    private static void sweep() {
+        if (!Files.isDirectory(DIR)) return;
+        long now = System.currentTimeMillis(), keep = Long.getLong("chorus.keepMs", 5 * 60_000);
+        try (var files = Files.list(DIR)) {
+            for (Path f : files.toList()) {
+                String file = f.getFileName().toString();
+                if (Files.isDirectory(f)) {
+                    if (file.equals("converted") && !Uploader.busy) for (Path c : Files.list(f).toList()) Files.deleteIfExists(c);
+                    continue;
+                }
+                String name = file.endsWith(".done") ? file.substring(0, file.length() - 5) : file;
+                if (!Media.NAME.matcher(name).matches()) continue;
+                if (now - lastUse.computeIfAbsent(name, n -> now) <= keep) continue;
+                Entry e = entries.remove(name);
+                if (e != null && e.file != null) e.file.close();
+                Files.deleteIfExists(DIR.resolve(name));
+                Files.deleteIfExists(DIR.resolve(name + ".done"));
+                lastUse.remove(name);
+            }
+        } catch (IOException e) {
+            Chorus.LOG.warn("chorus: couldn't clean the video cache ({})", e.toString());
+        }
+        MediaCache.class.notifyAll();
+    }
 
     private static final class Entry {
         final String name;
@@ -52,6 +80,7 @@ final class MediaCache {
     /** The address Chromium loads for a "chorus-media:" URL. */
     static synchronized String url(String name) {
         entry(name);
+        lastUse.put(name, System.currentTimeMillis());
         return "http://127.0.0.1:" + server().getAddress().getPort() + "/" + TOKEN + "/" + name;
     }
 
@@ -64,6 +93,7 @@ final class MediaCache {
 
     /** Keeps requests going; called every client tick. */
     static synchronized void tick() {
+        if (++ticks % Integer.getInteger("chorus.sweepTicks", 1200) == 0) sweep();
         for (Entry e : entries.values()) {
             if (e.missing || e.complete()) continue;
             if (e.size < 0) { if (e.inFlight == 0) request(e, 0); continue; }

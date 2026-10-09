@@ -18,5 +18,6 @@
   "chorus.upload.done": "Video enviado",
   "chorus.upload.failed": "No se pudo enviar el video:",
   "chorus.upload.convert_failed": "No se pudo convertir el video",
-  "chorus.upload.needs_ffmpeg": "Usa un WebM (VP9/AV1) o instala ffmpeg para convertirlo"
+  "chorus.upload.needs_ffmpeg": "Usa un WebM (VP9/AV1) o instala ffmpeg para convertirlo",
+  "chorus.upload.getting_ffmpeg": "Descargando el conversor de video"
 }

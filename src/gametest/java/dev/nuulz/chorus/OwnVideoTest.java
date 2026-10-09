@@ -29,6 +29,20 @@ public class OwnVideoTest implements FabricClientGameTest {
             sv.runOnServer(s -> ((ScreenBlockEntity) s.overworld().getBlockEntity(ScreenTest.POS)).seek(30_000));
             ctx.waitTicks(20 * 4);
             ctx.takeScreenshot(TestScreenshotOptions.of("own_2_seek30").disableCounterPrefix().withSize(1280, 720).withDestinationDir(out));
+            // stopped: with -Dchorus.keepMs/sweepTicks small, both copies should go
+            sv.runOnServer(s -> ((ScreenBlockEntity) s.overworld().getBlockEntity(ScreenTest.POS)).load(""));
+            ctx.waitTicks(20 * 15);
+            ctx.runOnClient(mc -> {
+                var root = mc.gameDirectory.toPath();
+                try (var a = java.nio.file.Files.list(root.resolve("chorus-cache"))) {
+                    System.out.println("chorus-test cache after stop: " + a.filter(f -> !java.nio.file.Files.isDirectory(f)).count());
+                } catch (Exception e) { System.out.println("chorus-test cache: " + e); }
+            });
+            sv.runOnServer(s -> {
+                try (var a = java.nio.file.Files.list(MediaStore.dir(s))) {
+                    System.out.println("chorus-test media after stop: " + a.count());
+                } catch (Exception e) { System.out.println("chorus-test media: " + e); }
+            });
         }
     }
 }

@@ -13,7 +13,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import java.util.List;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.storage.LevelResource;
 
@@ -29,7 +31,52 @@ final class MediaStore {
     private static final Map<UUID, Upload> uploads = new ConcurrentHashMap<>();
 
     static Path dir(ServerPlayer p) {
-        return p.level().getServer().getWorldPath(LevelResource.ROOT).resolve("chorus-media");
+        return dir(p.level().getServer());
+    }
+
+    static Path dir(MinecraftServer server) {
+        return server.getWorldPath(LevelResource.ROOT).resolve("chorus-media");
+    }
+
+    /** Videos no loaded screen has shown for this long are deleted. */
+    static final long KEEP_MS = Long.getLong("chorus.keepMs", 5 * 60_000);
+    static final int SWEEP_TICKS = Integer.getInteger("chorus.sweepTicks", 1200);
+    private static final Map<String, Long> lastUse = new ConcurrentHashMap<>();
+    private static int ticks;
+
+    /** Once a minute: forget videos nobody is showing, and stop screens whose video is gone. */
+    static void tick(MinecraftServer server) {
+        if (++ticks % SWEEP_TICKS != 0) return;
+        Path dir = dir(server);
+        if (!Files.isDirectory(dir)) return;
+        long now = System.currentTimeMillis();
+        Chorus.LOADED.removeIf(net.minecraft.world.level.block.entity.BlockEntity::isRemoved);
+        java.util.Set<String> used = new java.util.HashSet<>();
+        for (ScreenBlockEntity s : List.copyOf(Chorus.LOADED)) {
+            if (!Media.isMedia(s.url)) continue;
+            if (Files.isRegularFile(dir.resolve(Media.name(s.url)))) used.add(Media.name(s.url));
+            else s.load("");
+        }
+        java.util.Set<Path> uploading = new java.util.HashSet<>();
+        for (Upload u : uploads.values()) { used.add(u.name); uploading.add(u.temp); }
+        try (var files = Files.list(dir)) {
+            for (Path f : files.toList()) {
+                String name = f.getFileName().toString();
+                if (name.endsWith(".part")) {
+                    if (!uploading.contains(f) && now - Files.getLastModifiedTime(f).toMillis() > KEEP_MS) Files.deleteIfExists(f);
+                    continue;
+                }
+                if (!Media.NAME.matcher(name).matches()) continue;
+                if (used.contains(name)) { lastUse.put(name, now); continue; }
+                if (now - lastUse.computeIfAbsent(name, n -> now) > KEEP_MS) {
+                    Files.deleteIfExists(f);
+                    lastUse.remove(name);
+                    Chorus.LOG.info("chorus: deleted unused video {}", name);
+                }
+            }
+        } catch (IOException e) {
+            Chorus.LOG.warn("chorus: couldn't clean {} ({})", dir, e.toString());
+        }
     }
 
     static void begin(ServerPlayer player, Media.Begin b) {

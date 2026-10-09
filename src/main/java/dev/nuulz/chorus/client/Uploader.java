@@ -65,6 +65,12 @@ public final class Uploader {
             Path chosen = preset != null ? preset : choose();
             preset = null;
             if (chosen == null) { finish(""); return; }
+            while (FFmpeg.installing()) {
+                status = tr("getting_ffmpeg");
+                fraction = FFmpeg.fraction;
+                Thread.sleep(250);
+            }
+            fraction = -1;
             List<String> codecs = probe(chosen);
             String ext = chosen.getFileName().toString().toLowerCase(Locale.ROOT);
             ext = ext.contains(".") ? ext.substring(ext.lastIndexOf('.') + 1) : "";
@@ -110,7 +116,7 @@ public final class Uploader {
     /** Codec names of every stream ("-" for streams that aren't audio/video), or null without ffprobe. */
     private static List<String> probe(Path f) {
         try {
-            Process p = new ProcessBuilder("ffprobe", "-v", "error", "-show_entries", "stream=codec_type,codec_name",
+            Process p = new ProcessBuilder(FFmpeg.ffprobe(), "-v", "error", "-show_entries", "stream=codec_type,codec_name",
                 "-of", "csv=p=0", f.toString()).redirectErrorStream(true).start();
             List<String> out = new BufferedReader(new InputStreamReader(p.getInputStream())).lines()
                 .map(l -> l.split(",")).map(c -> c.length == 2 && (c[1].equals("video") || c[1].equals("audio")) ? c[0] : "-" + String.join(",", c))
@@ -125,14 +131,15 @@ public final class Uploader {
         Files.createDirectories(WORK);
         Path out = WORK.resolve("converting.webm");
         double duration = duration(src);
-        boolean nvenc = encoders().contains("av1_nvenc");
-        List<String> cmd = new java.util.ArrayList<>(List.of("ffmpeg", "-y", "-v", "error", "-progress", "pipe:1", "-i", src.toString(),
-            "-map", "0:v:0", "-map", "0:a:0?", "-vf", "scale='min(1280,iw)':-2"));
-        if (nvenc) cmd.addAll(List.of("-c:v", "av1_nvenc", "-cq", "32"));
-        else cmd.addAll(List.of("-c:v", "libsvtav1", "-preset", "10", "-crf", "35"));
+        Encoder enc = encoder();
+        List<String> cmd = new java.util.ArrayList<>(List.of(FFmpeg.ffmpeg(), "-y", "-v", "error", "-progress", "pipe:1"));
+        cmd.addAll(enc.before);
+        cmd.addAll(List.of("-i", src.toString(), "-map", "0:v:0", "-map", "0:a:0?", "-vf", enc.filter("scale='min(1280,iw)':-2")));
+        cmd.addAll(enc.args);
         cmd.addAll(List.of("-c:a", "libopus", "-b:a", "128k", out.toString()));
-        status = tr("converting");
+        status = tr("converting") + " (" + enc.label + ")";
         fraction = 0;
+        Chorus.LOG.info("chorus: converting with {}", enc.label);
         Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
         try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
             for (String l; (l = r.readLine()) != null; ) {
@@ -141,13 +148,17 @@ public final class Uploader {
                 } else if (!l.contains("=")) Chorus.LOG.info("chorus ffmpeg: {}", l);
             }
         }
-        if (p.waitFor() != 0) { finish(tr("convert_failed")); return null; }
+        if (p.waitFor() != 0) {
+            if (enc != CPU) { broken.add(enc.label); return convert(src); } // GPU said yes to a test frame but not to this video
+            finish(tr("convert_failed"));
+            return null;
+        }
         return out;
     }
 
     private static double duration(Path f) {
         try {
-            Process p = new ProcessBuilder("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f.toString()).start();
+            Process p = new ProcessBuilder(FFmpeg.ffprobe(), "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f.toString()).start();
             String s = new String(p.getInputStream().readAllBytes()).trim();
             p.waitFor();
             return Double.parseDouble(s);
@@ -156,22 +167,39 @@ public final class Uploader {
         }
     }
 
-    private static String encoders() {
-        try {
-            Process p = new ProcessBuilder("ffmpeg", "-hide_banner", "-encoders").start();
-            String s = new String(p.getInputStream().readAllBytes());
-            p.waitFor();
-            // listed isn't enough: nvenc needs an NVIDIA GPU, so try one frame
-            if (s.contains("av1_nvenc")) {
-                Process t = new ProcessBuilder("ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=s=256x256:d=0.1",
-                    "-frames:v", "1", "-c:v", "av1_nvenc", "-f", "null", "-").start();
+    /** How to encode AV1: hardware when this machine has it, else SVT-AV1 on the CPU. */
+    private record Encoder(String label, List<String> before, String hwFilter, List<String> args) {
+        String filter(String scale) { return hwFilter.isEmpty() ? scale : scale + "," + hwFilter; }
+    }
+
+    private static final Encoder CPU = new Encoder("CPU", List.of(), "",
+        List.of("-c:v", "libsvtav1", "-preset", "10", "-crf", "35"));
+    private static final List<Encoder> GPUS = List.of(
+        new Encoder("NVIDIA", List.of("-hwaccel", "auto"), "", List.of("-c:v", "av1_nvenc", "-preset", "p5", "-cq", "32")),
+        new Encoder("Intel", List.of("-hwaccel", "auto"), "", List.of("-c:v", "av1_qsv", "-global_quality", "30")),
+        new Encoder("AMD", List.of("-hwaccel", "auto"), "", List.of("-c:v", "av1_amf", "-quality", "balanced", "-rc", "cqp", "-qp_i", "30", "-qp_p", "32")),
+        new Encoder("VAAPI", List.of("-vaapi_device", "/dev/dri/renderD128"), "format=nv12,hwupload", List.of("-c:v", "av1_vaapi", "-b:v", "4M")));
+    private static final java.util.Set<String> broken = new java.util.HashSet<>();
+    private static Encoder chosen;
+
+    /** The first hardware encoder that really encodes a test frame here (listed isn't enough: no GPU, old driver...). */
+    private static Encoder encoder() {
+        if (chosen != null && !broken.contains(chosen.label)) return chosen;
+        chosen = CPU;
+        for (Encoder e : GPUS) {
+            if (broken.contains(e.label)) continue;
+            List<String> cmd = new java.util.ArrayList<>(List.of(FFmpeg.ffmpeg(), "-v", "error"));
+            cmd.addAll(e.before.stream().filter(a -> !a.equals("-hwaccel") && !a.equals("auto")).toList());
+            cmd.addAll(List.of("-f", "lavfi", "-i", "testsrc2=s=640x360:d=0.2", "-vf", e.filter("scale=640:360")));
+            cmd.addAll(e.args);
+            cmd.addAll(List.of("-f", "null", "-"));
+            try {
+                Process t = new ProcessBuilder(cmd).redirectErrorStream(true).start();
                 t.getInputStream().readAllBytes();
-                if (t.waitFor() != 0) s = s.replace("av1_nvenc", "");
-            }
-            return s;
-        } catch (Exception e) {
-            return "";
+                if (t.waitFor() == 0) { chosen = e; break; }
+            } catch (Exception ignored) { }
         }
+        return chosen;
     }
 
     /** Sends while fewer than a few acks are outstanding; called every client tick. */

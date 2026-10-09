@@ -13,8 +13,12 @@ worlds, where the host owns the world.
   at don't upload frames; screens out of range close their browser.
 - Only https URLs from allowed sites, checked by the server and again by each client.
 
-- Your own videos: "Your own video…" picks a file, converts it to WebM/AV1 with ffmpeg when it's H.264 (this
+- Your own videos: "Your own video…" picks a file, converts it to WebM/AV1 when it's H.264 (on the GPU when there is one: NVIDIA, Intel, AMD or VAAPI; else SVT-AV1) (this
   Chromium has no proprietary codecs), and sends it through the Minecraft connection. The server keeps it in
   `<world>/chorus-media/`; each client downloads it to `chorus-cache/` and plays while downloading.
+  Videos no loaded screen has shown for 5 minutes are deleted on both sides.
+- ffmpeg is downloaded once on first launch into `chorus-ffmpeg/`: unmodified static builds (BtbN's LGPL
+  builds for Linux/Windows, Martin Riedl's for macOS) mirrored at chromium.nuulm.com/ffmpeg/; sources are
+  linked in each package's SOURCES.txt.
 
 Config: `config/chorus-server.properties` and `config/chorus-client.properties`.
