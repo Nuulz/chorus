@@ -1,0 +1,12 @@
+{
+  "block.chorus.screen": "Pantalla Chorus",
+  "chorus.load": "Cargar",
+  "chorus.play": "Reproducir",
+  "chorus.pause": "Pausa",
+  "chorus.stop": "Detener",
+  "chorus.idle": "No hay nada reproduciéndose",
+  "chorus.no_permission": "Solo quien puso la pantalla, el dueño del mundo o un operador pueden controlarla.",
+  "chorus.url_blocked": "Ese sitio no está permitido (solo https; los sitios permitidos están en config/chorus-*.properties).",
+  "chorus.too_many": "Este mundo ya tiene el máximo de %s pantallas.",
+  "chorus.browser_failed": "El navegador no pudo iniciar en este computador."
+}

@@ -1,0 +1,16 @@
+pluginManagement {
+    repositories {
+        maven { url = "https://maven.fabricmc.net/" }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+plugins { id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0" }
+rootProject.name = "chorus"
+
+// pane (github.com/Nuulz/pane): with a checkout next to this one, build from it; otherwise JitPack.
+if (file("../pane").isDirectory()) {
+    includeBuild("../pane") {
+        dependencySubstitution { substitute(module("com.github.Nuulz:pane")).using(project(":")) }
+    }
+}

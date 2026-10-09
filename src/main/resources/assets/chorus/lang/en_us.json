@@ -1,0 +1,12 @@
+{
+  "block.chorus.screen": "Chorus Screen",
+  "chorus.load": "Load",
+  "chorus.play": "Play",
+  "chorus.pause": "Pause",
+  "chorus.stop": "Stop",
+  "chorus.idle": "Nothing playing",
+  "chorus.no_permission": "Only whoever placed this screen, the world's owner or an operator can control it.",
+  "chorus.url_blocked": "That site isn't allowed (https only, allowed sites are in config/chorus-*.properties).",
+  "chorus.too_many": "This world already has the maximum of %s screens.",
+  "chorus.browser_failed": "The browser couldn't start on this computer."
+}

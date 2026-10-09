@@ -1,0 +1,2 @@
+{ "parent": "minecraft:block/orientable",
+  "textures": { "top": "minecraft:block/black_concrete", "side": "minecraft:block/black_concrete", "front": "minecraft:block/observer_back_on" } }

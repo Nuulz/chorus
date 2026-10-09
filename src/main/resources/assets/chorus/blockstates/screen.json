@@ -1,0 +1,6 @@
+{ "variants": {
+  "facing=north": { "model": "chorus:block/screen" },
+  "facing=east":  { "model": "chorus:block/screen", "y": 90 },
+  "facing=south": { "model": "chorus:block/screen", "y": 180 },
+  "facing=west":  { "model": "chorus:block/screen", "y": 270 }
+} }
