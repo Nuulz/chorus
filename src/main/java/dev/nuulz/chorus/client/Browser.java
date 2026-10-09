@@ -23,7 +23,6 @@ final class Browser {
         try {
             Pane.configure(PaneConfig.at(mc.gameDirectory.toPath().resolve("chorus-browser"))
                 .userAgentProduct("chorus")
-                .chromiumSwitch("--autoplay-policy=no-user-gesture-required")
                 .glfwWindow(() -> mc.getWindow().handle()));
         } catch (IllegalStateException alreadyConfigured) {
             // someone else set pane up; their install/start will bring it up
