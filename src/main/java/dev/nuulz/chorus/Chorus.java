@@ -7,6 +7,7 @@ import java.util.WeakHashMap;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.fabricmc.loader.api.FabricLoader;
@@ -48,6 +49,7 @@ public final class Chorus implements ModInitializer {
     public static UrlPolicy urls;
     public static int maxScreens;
     public static boolean anyoneControls;
+    public static long maxMediaBytes;
 
     @Override
     public void onInitialize() {
@@ -55,10 +57,12 @@ public final class Chorus implements ModInitializer {
         d.setProperty("max_screens", "6");
         d.setProperty("allowed_hosts", UrlPolicy.DEFAULT_HOSTS);
         d.setProperty("anyone_can_control", "false");
+        d.setProperty("max_video_mb", "4096");
         Props cfg = new Props(FabricLoader.getInstance().getConfigDir().resolve("chorus-server.properties"), d);
         urls = new UrlPolicy(cfg.str("allowed_hosts"));
         maxScreens = cfg.num("max_screens", 1, 64);
         anyoneControls = cfg.flag("anyone_can_control");
+        maxMediaBytes = cfg.num("max_video_mb", 1, 65536) * 1024L * 1024L;
 
         Registry.register(BuiltInRegistries.BLOCK, SCREEN_ID, SCREEN);
         Item item = new BlockItem(SCREEN, new Item.Properties().useBlockDescriptionPrefix()
@@ -69,6 +73,16 @@ public final class Chorus implements ModInitializer {
 
         PayloadTypeRegistry.serverboundPlay().register(ControlPayload.TYPE, ControlPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(ControlPayload.TYPE, (p, ctx) -> control(ctx.player(), p));
+
+        PayloadTypeRegistry.serverboundPlay().register(Media.Begin.TYPE, Media.Begin.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(Media.Piece.TYPE, Media.Piece.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(Media.Fetch.TYPE, Media.Fetch.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(Media.Ack.TYPE, Media.Ack.CODEC);
+        PayloadTypeRegistry.clientboundPlay().registerLarge(Media.Chunk.TYPE, Media.Chunk.CODEC, Media.CHUNK + 1024);
+        ServerPlayNetworking.registerGlobalReceiver(Media.Begin.TYPE, (p, ctx) -> MediaStore.begin(ctx.player(), p));
+        ServerPlayNetworking.registerGlobalReceiver(Media.Piece.TYPE, (p, ctx) -> MediaStore.piece(ctx.player(), p));
+        ServerPlayNetworking.registerGlobalReceiver(Media.Fetch.TYPE, (p, ctx) -> MediaStore.fetch(ctx.player(), p));
+        ServerPlayConnectionEvents.DISCONNECT.register((h, server) -> MediaStore.abort(h.getPlayer()));
     }
 
     /** Who may drive a screen: whoever placed it, the world's owner (a jukz host) and operators. */
@@ -88,7 +102,9 @@ public final class Chorus implements ModInitializer {
         }
         switch (p.action()) {
             case ControlPayload.SET_URL -> {
-                if (!urls.allows(p.url())) {
+                boolean stored = Media.isMedia(p.url())
+                    && java.nio.file.Files.isRegularFile(MediaStore.dir(player).resolve(Media.name(p.url())));
+                if (!stored && !urls.allows(p.url())) {
                     player.sendSystemMessage(Component.translatable("chorus.url_blocked"));
                     return;
                 }

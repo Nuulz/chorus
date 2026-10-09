@@ -1,5 +1,6 @@
 package dev.nuulz.chorus.client;
 
+import dev.nuulz.chorus.Media;
 import dev.nuulz.chorus.ScreenBlockEntity;
 import dev.nuulz.pane.Pane;
 import dev.nuulz.pane.PaneView;
@@ -56,7 +57,7 @@ final class Screens {
         double radius = ClientConfig.radius;
 
         List<ScreenBlockEntity> wanted = loaded.stream()
-            .filter(be -> !be.url.isEmpty() && ClientConfig.urls.allows(be.url))
+            .filter(be -> !be.url.isEmpty() && (Media.isMedia(be.url) || ClientConfig.urls.allows(be.url)))
             .filter(be -> Vec3.atCenterOf(be.getBlockPos()).distanceTo(eye) < radius + (live.containsKey(be) ? 8 : 0))
             .sorted(Comparator.comparingDouble(be -> Vec3.atCenterOf(be.getBlockPos()).distanceTo(eye)))
             .limit(ClientConfig.maxActive).toList();
@@ -68,12 +69,13 @@ final class Screens {
         long time = mc.level.getGameTime();
         for (ScreenBlockEntity be : wanted) {
             Live l = live.computeIfAbsent(be, k -> new Live());
+            String target = Media.isMedia(be.url) ? MediaCache.url(Media.name(be.url)) : be.url;
             if (l.view == null) {
-                l.view = Pane.open(be.url);
+                l.view = Pane.open(target);
                 l.view.resize(ClientConfig.width, ClientConfig.height);
                 l.url = be.url;
             } else if (!l.url.equals(be.url)) {
-                l.view.load(be.url);
+                l.view.load(target);
                 l.url = be.url;
             }
             boolean fresh = l.revision != be.revision;

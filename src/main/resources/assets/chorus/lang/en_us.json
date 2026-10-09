@@ -8,5 +8,15 @@
   "chorus.no_permission": "Only whoever placed this screen, the world's owner or an operator can control it.",
   "chorus.url_blocked": "That site isn't allowed (https only, allowed sites are in config/chorus-*.properties).",
   "chorus.too_many": "This world already has the maximum of %s screens.",
-  "chorus.browser_failed": "The browser couldn't start on this computer."
+  "chorus.browser_failed": "The browser couldn't start on this computer.",
+  "chorus.own_video": "Your own video…",
+  "chorus.downloading": "downloading %s%%",
+  "chorus.upload.pick": "Pick a video",
+  "chorus.upload.hashing": "Preparing…",
+  "chorus.upload.uploading": "Sending",
+  "chorus.upload.converting": "Converting (H.264 doesn't play here)",
+  "chorus.upload.done": "Video sent",
+  "chorus.upload.failed": "Couldn't send the video:",
+  "chorus.upload.convert_failed": "Couldn't convert the video",
+  "chorus.upload.needs_ffmpeg": "Use a WebM (VP9/AV1) file, or install ffmpeg to convert it"
 }

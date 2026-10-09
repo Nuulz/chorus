@@ -8,5 +8,15 @@
   "chorus.no_permission": "Solo quien puso la pantalla, el dueño del mundo o un operador pueden controlarla.",
   "chorus.url_blocked": "Ese sitio no está permitido (solo https; los sitios permitidos están en config/chorus-*.properties).",
   "chorus.too_many": "Este mundo ya tiene el máximo de %s pantallas.",
-  "chorus.browser_failed": "El navegador no pudo iniciar en este computador."
+  "chorus.browser_failed": "El navegador no pudo iniciar en este computador.",
+  "chorus.own_video": "Video propio…",
+  "chorus.downloading": "descargando %s%%",
+  "chorus.upload.pick": "Elige un video",
+  "chorus.upload.hashing": "Preparando…",
+  "chorus.upload.uploading": "Enviando",
+  "chorus.upload.converting": "Convirtiendo (H.264 no se reproduce aquí)",
+  "chorus.upload.done": "Video enviado",
+  "chorus.upload.failed": "No se pudo enviar el video:",
+  "chorus.upload.convert_failed": "No se pudo convertir el video",
+  "chorus.upload.needs_ffmpeg": "Usa un WebM (VP9/AV1) o instala ffmpeg para convertirlo"
 }

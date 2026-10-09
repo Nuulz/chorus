@@ -3,5 +3,5 @@
   "id": "chorus-test",
   "version": "1",
   "environment": "*",
-  "entrypoints": { "fabric-client-gametest": ["dev.nuulz.chorus.ScreenTest"] }
+  "entrypoints": { "fabric-client-gametest": ["dev.nuulz.chorus.ScreenTest", "dev.nuulz.chorus.OwnVideoTest"] }
 }

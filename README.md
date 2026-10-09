@@ -13,4 +13,8 @@ worlds, where the host owns the world.
   at don't upload frames; screens out of range close their browser.
 - Only https URLs from allowed sites, checked by the server and again by each client.
 
+- Your own videos: "Your own video…" picks a file, converts it to WebM/AV1 with ffmpeg when it's H.264 (this
+  Chromium has no proprietary codecs), and sends it through the Minecraft connection. The server keeps it in
+  `<world>/chorus-media/`; each client downloads it to `chorus-cache/` and plays while downloading.
+
 Config: `config/chorus-server.properties` and `config/chorus-client.properties`.
