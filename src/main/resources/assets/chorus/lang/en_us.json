@@ -19,5 +19,15 @@
   "chorus.upload.failed": "Couldn't send the video:",
   "chorus.upload.convert_failed": "Couldn't convert the video",
   "chorus.upload.needs_ffmpeg": "Use a WebM (VP9/AV1) file, or install ffmpeg to convert it",
-  "chorus.upload.getting_ffmpeg": "Getting the video converter"
+  "chorus.upload.getting_ffmpeg": "Getting the video converter",
+  "chorus.browse": "Browse",
+  "chorus.share": "Share",
+  "chorus.browse_far": "Get closer to this screen to browse it",
+  "chorus.settings": "Chorus settings",
+  "chorus.settings.any_link": "Accept any link",
+  "chorus.settings.any_link_warning": "Any site can then open on your screens. Only turn it on with people you trust.",
+  "chorus.settings.volume": "Volume",
+  "chorus.settings.screens": "Live screens",
+  "chorus.settings.radius": "Range (blocks)",
+  "chorus.settings.quality": "Quality"
 }

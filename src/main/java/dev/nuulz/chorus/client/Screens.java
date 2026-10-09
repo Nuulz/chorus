@@ -24,11 +24,16 @@ final class Screens {
         final ScreenTexture texture = new ScreenTexture();
         String url = "";
         int revision = -1;
+        /** Someone is using the page by hand (BrowseScreen): don't move or cover it. */
+        boolean browsing;
+        private boolean unpinned;
         long nextSync;
     }
 
     private static final Map<ScreenBlockEntity, Live> live = new HashMap<>();
     private static final List<ScreenBlockEntity> loaded = new ArrayList<>();
+    /** Screens open in BrowseScreen get a page even with nothing playing. */
+    static final java.util.Set<ScreenBlockEntity> browsingNow = new java.util.HashSet<>();
     private static long lastPump;
 
     static void loaded(ScreenBlockEntity be) { if (!loaded.contains(be)) loaded.add(be); }
@@ -57,9 +62,9 @@ final class Screens {
         double radius = ClientConfig.radius;
 
         List<ScreenBlockEntity> wanted = loaded.stream()
-            .filter(be -> !be.url.isEmpty() && (Media.isMedia(be.url) || ClientConfig.urls.allows(be.url)))
+            .filter(be -> browsingNow.contains(be) || !be.url.isEmpty() && (Media.isMedia(be.url) || ClientConfig.urls.allows(be.url)))
             .filter(be -> Vec3.atCenterOf(be.getBlockPos()).distanceTo(eye) < radius + (live.containsKey(be) ? 8 : 0))
-            .sorted(Comparator.comparingDouble(be -> Vec3.atCenterOf(be.getBlockPos()).distanceTo(eye)))
+            .sorted(Comparator.comparingDouble(be -> browsingNow.contains(be) ? -1 : Vec3.atCenterOf(be.getBlockPos()).distanceTo(eye)))
             .limit(ClientConfig.maxActive).toList();
 
         for (ScreenBlockEntity be : List.copyOf(live.keySet())) if (!wanted.contains(be)) close(be);
@@ -69,7 +74,7 @@ final class Screens {
         long time = mc.level.getGameTime();
         for (ScreenBlockEntity be : wanted) {
             Live l = live.computeIfAbsent(be, k -> new Live());
-            String target = Media.isMedia(be.url) ? MediaCache.url(Media.name(be.url)) : be.url;
+            String target = be.url.isEmpty() ? "about:blank" : Media.isMedia(be.url) ? MediaCache.url(Media.name(be.url)) : be.url;
             if (l.view == null) {
                 l.view = Pane.open(target);
                 l.view.resize(ClientConfig.width, ClientConfig.height);
@@ -78,6 +83,13 @@ final class Screens {
                 l.view.load(target);
                 l.url = be.url;
             }
+            if (l.view.width() != ClientConfig.width || l.view.height() != ClientConfig.height)
+                l.view.resize(ClientConfig.width, ClientConfig.height);
+            if (l.browsing) {
+                if (!l.unpinned) { l.view.executeJavaScript(UNPIN, "", 0); l.unpinned = true; }
+                continue;
+            }
+            l.unpinned = false;
             boolean fresh = l.revision != be.revision;
             if (!fresh && time < l.nextSync) continue;
             l.revision = be.revision;
@@ -111,6 +123,12 @@ final class Screens {
               if (!%b && !v.paused) v.pause();
             })();""", volume, volume, seconds, tolerance, seconds, playing, playing);
     }
+
+    private static final String UNPIN = """
+        (() => {
+          const s = document.getElementById('__chorus'); if (s) s.remove();
+          document.querySelectorAll('video.__chorus').forEach(v => v.classList.remove('__chorus'));
+        })();""";
 
     private static void close(ScreenBlockEntity be) {
         Live l = live.remove(be);

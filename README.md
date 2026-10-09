@@ -21,4 +21,8 @@ worlds, where the host owns the world.
   builds for Linux/Windows, Martin Riedl's for macOS) mirrored at chromium.nuulm.com/ffmpeg/; sources are
   linked in each package's SOURCES.txt.
 
+- Browse: use a screen's page by hand (click, scroll, type, back/forward), e.g. to log in to Telegram Web
+  and open a video; "Share" sends its address to everyone. Settings (Mod Menu): accept any link, volume,
+  live screens, range, quality.
+
 Config: `config/chorus-server.properties` and `config/chorus-client.properties`.

@@ -12,22 +12,34 @@ import java.util.Locale;
  */
 public final class UrlPolicy {
     public static final String DEFAULT_HOSTS =
-        "youtube.com,youtu.be,youtube-nocookie.com,twitch.tv,vimeo.com,dailymotion.com,kick.com,archive.org";
+        "youtube.com,youtu.be,youtube-nocookie.com,twitch.tv,vimeo.com,dailymotion.com,kick.com,archive.org,web.telegram.org,t.me";
     public static final int MAX_LENGTH = 512;
 
     private final List<String> hosts;
+    private final boolean any;
 
-    public UrlPolicy(String csv) {
+    /** [any]: every http(s) page except this computer itself, for people who opted in. */
+    public UrlPolicy(String csv, boolean any) {
+        this.any = any;
         hosts = Arrays.stream(csv.split(",")).map(s -> s.trim().toLowerCase(Locale.ROOT))
             .filter(s -> !s.isEmpty()).toList();
+    }
+
+    /** Pages on this machine (and its private network names) stay off-limits even with [any]. */
+    private static boolean local(String host) {
+        return host.equals("localhost") || host.endsWith(".localhost") || host.startsWith("127.")
+            || host.equals("0.0.0.0") || host.equals("[::1]") || host.equals("::1");
     }
 
     public boolean allows(String url) {
         if (url == null || url.isEmpty() || url.length() > MAX_LENGTH) return false;
         try {
             URI u = new URI(url);
-            if (!"https".equalsIgnoreCase(u.getScheme()) || u.getHost() == null || u.getUserInfo() != null) return false;
+            String scheme = u.getScheme() == null ? "" : u.getScheme().toLowerCase(Locale.ROOT);
+            if (u.getHost() == null || u.getUserInfo() != null) return false;
             String host = u.getHost().toLowerCase(Locale.ROOT);
+            if (any) return (scheme.equals("https") || scheme.equals("http")) && !local(host);
+            if (!scheme.equals("https")) return false;
             return hosts.stream().anyMatch(h -> host.equals(h) || host.endsWith("." + h));
         } catch (Exception e) {
             return false;

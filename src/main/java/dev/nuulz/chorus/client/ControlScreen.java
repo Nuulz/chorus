@@ -39,7 +39,9 @@ final class ControlScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal("+10s"), b -> seek(10_000)).bounds(x + 183, by, bw, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("chorus.stop"), b -> send(ControlPayload.STOP, "", 0)).bounds(x + 244, by, bw, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("chorus.own_video"), b -> Uploader.pick(be.getBlockPos()))
-            .bounds(x, by + 28, w, 20).build());
+            .bounds(x, by + 28, w / 2 - 2, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("chorus.browse"), b -> minecraft.gui.setScreen(new BrowseScreen(be)))
+            .bounds(x + w / 2 + 2, by + 28, w / 2 - 2, 20).build());
     }
 
     private void seek(long delta) {

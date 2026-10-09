@@ -6,6 +6,7 @@ group = "dev.nuulz"
 repositories {
     maven { url = "https://maven.fabricmc.net/" }
     maven { url = "https://jitpack.io" }
+    maven { url = "https://maven.terraformersmc.com/releases/" }
     mavenCentral()
 }
 
@@ -15,6 +16,8 @@ dependencies {
     implementation "net.fabricmc.fabric-api:fabric-api:0.161.0+26.2"
     implementation "com.github.Nuulz:pane:v0.2.1"
     include "com.github.Nuulz:pane:v0.2.1"
+    // Mod Menu's Config button; compile-only, Chorus works without it
+    compileOnly "com.terraformersmc:modmenu:20.0.3"
 }
 
 java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }

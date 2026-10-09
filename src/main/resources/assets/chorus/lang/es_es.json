@@ -19,5 +19,15 @@
   "chorus.upload.failed": "No se pudo enviar el video:",
   "chorus.upload.convert_failed": "No se pudo convertir el video",
   "chorus.upload.needs_ffmpeg": "Usa un WebM (VP9/AV1) o instala ffmpeg para convertirlo",
-  "chorus.upload.getting_ffmpeg": "Descargando el conversor de video"
+  "chorus.upload.getting_ffmpeg": "Descargando el conversor de video",
+  "chorus.browse": "Navegar",
+  "chorus.share": "Compartir",
+  "chorus.browse_far": "Acércate a la pantalla para navegarla",
+  "chorus.settings": "Ajustes de Chorus",
+  "chorus.settings.any_link": "Aceptar cualquier enlace",
+  "chorus.settings.any_link_warning": "Cualquier sitio podrá abrirse en tus pantallas. Actívalo solo con gente de confianza.",
+  "chorus.settings.volume": "Volumen",
+  "chorus.settings.screens": "Pantallas activas",
+  "chorus.settings.radius": "Alcance (bloques)",
+  "chorus.settings.quality": "Calidad"
 }

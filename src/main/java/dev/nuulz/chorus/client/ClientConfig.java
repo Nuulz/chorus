@@ -6,9 +6,11 @@ import java.util.Properties;
 import net.fabricmc.loader.api.FabricLoader;
 
 /** This player's limits: what their machine renders and which sites their Chromium will open. */
-final class ClientConfig {
+public final class ClientConfig {
     static int maxActive, width, height, radius, volume;
+    static boolean anyLink;
     static UrlPolicy urls;
+    private static Props p;
 
     static void load() {
         Properties d = new Properties();
@@ -18,13 +20,20 @@ final class ClientConfig {
         d.setProperty("radius", "32");
         d.setProperty("volume_percent", "100");
         d.setProperty("allowed_hosts", UrlPolicy.DEFAULT_HOSTS);
-        Props p = new Props(FabricLoader.getInstance().getConfigDir().resolve("chorus-client.properties"), d);
+        d.setProperty("allow_any_link", "false");
+        p = new Props(FabricLoader.getInstance().getConfigDir().resolve("chorus-client.properties"), d);
         maxActive = p.num("max_active_screens", 0, 4);
         width = p.num("width", 256, 1280);
         height = p.num("height", 144, 720);
         radius = p.num("radius", 8, 64);
         volume = p.num("volume_percent", 0, 100);
-        urls = new UrlPolicy(p.str("allowed_hosts"));
+        anyLink = p.flag("allow_any_link");
+        urls = new UrlPolicy(p.str("allowed_hosts"), anyLink);
+    }
+
+    static void set(String key, Object value) {
+        p.set(key, value);
+        load();
     }
 
     private ClientConfig() {}

@@ -48,6 +48,13 @@ public final class Chorus implements ModInitializer {
     static final Set<ScreenBlockEntity> LOADED = Collections.newSetFromMap(new WeakHashMap<>());
 
     public static UrlPolicy urls;
+    private static Props cfg;
+
+    /** The "any link" switch, from this machine's settings screen (a host's server is the same machine). */
+    public static void allowAnyLink(boolean on) {
+        cfg.set("allow_any_link", on);
+        urls = new UrlPolicy(cfg.str("allowed_hosts"), on);
+    }
     public static int maxScreens;
     public static boolean anyoneControls;
     public static long maxMediaBytes;
@@ -59,8 +66,9 @@ public final class Chorus implements ModInitializer {
         d.setProperty("allowed_hosts", UrlPolicy.DEFAULT_HOSTS);
         d.setProperty("anyone_can_control", "false");
         d.setProperty("max_video_mb", "4096");
-        Props cfg = new Props(FabricLoader.getInstance().getConfigDir().resolve("chorus-server.properties"), d);
-        urls = new UrlPolicy(cfg.str("allowed_hosts"));
+        d.setProperty("allow_any_link", "false");
+        cfg = new Props(FabricLoader.getInstance().getConfigDir().resolve("chorus-server.properties"), d);
+        urls = new UrlPolicy(cfg.str("allowed_hosts"), cfg.flag("allow_any_link"));
         maxScreens = cfg.num("max_screens", 1, 64);
         anyoneControls = cfg.flag("anyone_can_control");
         maxMediaBytes = cfg.num("max_video_mb", 1, 65536) * 1024L * 1024L;
