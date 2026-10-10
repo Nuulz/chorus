@@ -25,6 +25,17 @@ public class SizeTest implements FabricClientGameTest {
             });
             ctx.waitFor(mc -> dev.nuulz.pane.Pane.running(), 20 * 60);
             ctx.waitTicks(20 * 25);
+            ctx.runOnClient(mc -> {
+                System.out.println("chorus-test apps: " + dev.nuulz.chorus.client.AudioRoute.apps());
+                try {
+                    Process p = new ProcessBuilder("pactl", "-f", "json", "list", "sink-inputs").start();
+                    String all = new String(p.getInputStream().readAllBytes());
+                    for (String key : new String[]{"application.name", "application.process.binary", "application.process.id"})
+                        for (var m = java.util.regex.Pattern.compile("\"" + java.util.regex.Pattern.quote(key) + "\":\"([^\"]*)\"").matcher(all); m.find(); )
+                            System.out.println("chorus-test stream " + key + "=" + m.group(1));
+                } catch (Exception e) { System.out.println("chorus-test pactl " + e); }
+                System.out.println("chorus-test my pid " + ProcessHandle.current().pid());
+            });
             ctx.takeScreenshot(TestScreenshotOptions.of("size_6").disableCounterPrefix().withSize(1280, 720).withDestinationDir(out));
             sv.runCommand("tp @a 8.5 -59 8.5 135 5");
             ctx.waitTicks(20);

@@ -16,7 +16,7 @@ import java.util.Map;
  * them audible on your speakers; the cast records the virtual output, so your game, voice chat and
  * notifications stay out of it.
  */
-final class AudioRoute implements AutoCloseable {
+public final class AudioRoute implements AutoCloseable {
     static final String NONE = "", ALL = "*";
     private static final String SINK = "chorus_cast";
 
@@ -28,13 +28,13 @@ final class AudioRoute implements AutoCloseable {
     /** True when one app's sound goes only into the cast (so the projector can play it without echo). */
     boolean onlyInCast() { return !modules.isEmpty() && !local; }
 
-    static Map<String, String> apps() {
+    public static Map<String, String> apps() {
         Map<String, String> out = new LinkedHashMap<>();
         for (JsonObject in : sinkInputs()) {
             JsonObject p = in.getAsJsonObject("properties");
             String id = key(p), name = str(p, "application.name");
-            if (id.isEmpty() || id.equals("java") || str(p, "application.process.id").equals(String.valueOf(ProcessHandle.current().pid())))
-                continue; // Minecraft itself
+            if (id.isEmpty() || id.equals("java") || ours(str(p, "application.process.id")))
+                continue; // Minecraft itself, or the Chromium that plays the projectors
             out.putIfAbsent(id, name.isEmpty() ? id : name);
         }
         return out;
@@ -62,7 +62,7 @@ final class AudioRoute implements AutoCloseable {
         if (modules.isEmpty()) return;
         for (JsonObject in : sinkInputs()) {
             JsonObject p = in.getAsJsonObject("properties");
-            if (!app.equals(key(p))) continue;
+            if (!app.equals(key(p)) || ours(str(p, "application.process.id"))) continue;
             if (str(in, "sink").equals(sinkIndex())) continue;
             try { run("pactl", "move-sink-input", in.get("index").getAsString(), SINK); } catch (Exception ignored) { }
         }
@@ -94,6 +94,18 @@ final class AudioRoute implements AutoCloseable {
             for (JsonElement e : a) out.add(e.getAsJsonObject());
         } catch (Exception ignored) { }
         return out;
+    }
+
+    /** Whether [pid] is this game or one of its child processes (pane's Chromium helpers). */
+    private static boolean ours(String pid) {
+        try {
+            long id = Long.parseLong(pid);
+            ProcessHandle me = ProcessHandle.current();
+            if (id == me.pid()) return true;
+            return me.descendants().anyMatch(h -> h.pid() == id);
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     /** An app's identity: its executable, or its name when the stream doesn't say. */
