@@ -56,5 +56,6 @@
   "chorus.size": "Size: %s blocks wide",
   "chorus.cast.captured": "captured",
   "chorus.cast.hear_projector": "Hear it from the projector",
-  "chorus.cast.hint_projector": "Muted on your PC; you hear it in the game, a few seconds late."
+  "chorus.cast.hint_projector": "Muted on your PC; you hear it in the game, a few seconds late.",
+  "chorus.cast.hint_projector_app": "To hear it from the projector, pick one app under Sound."
 }

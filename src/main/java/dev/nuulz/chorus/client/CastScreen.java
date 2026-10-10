@@ -43,7 +43,7 @@ public final class CastScreen extends Screen {
         Map<String, String> apps = Caster.windows() ? Map.of() : AudioRoute.apps();
         audio.addAll(apps.keySet());
         if (idle) {
-            app = apps.isEmpty() ? AudioRoute.NONE : app.equals(AudioRoute.NONE) ? AudioRoute.NONE : app;
+            if (!apps.containsKey(app)) app = apps.isEmpty() ? AudioRoute.NONE : apps.keySet().iterator().next();
             addRenderableWidget(CycleButton.<String>builder(id -> Component.literal(
                     id.equals(AudioRoute.NONE) ? Caster.tr("audio_none") : id.equals(AudioRoute.ALL) ? Caster.tr("audio_all") : apps.get(id)), app)
                 .withValues(audio)
@@ -78,8 +78,10 @@ public final class CastScreen extends Screen {
         }
         g.centeredText(font, title, cx, y - 14, 0xFFFFFFFF);
         if (!Caster.running) {
-            g.centeredText(font, Component.translatable(ClientConfig.hearProjector() && !Caster.windows()
-                ? "chorus.cast.hint_projector" : "chorus.cast.hint"), cx, height / 2 + 76, 0xFFAAAAAA);
+            boolean projector = ClientConfig.hearProjector() && !Caster.windows();
+            boolean oneApp = !app.equals(AudioRoute.NONE) && !app.equals(AudioRoute.ALL);
+            String hint = !projector ? "chorus.cast.hint" : oneApp ? "chorus.cast.hint_projector" : "chorus.cast.hint_projector_app";
+            g.centeredText(font, Component.translatable(hint), cx, height / 2 + 76, projector && !oneApp ? 0xFFFFAA55 : 0xFFAAAAAA);
         }
         g.centeredText(font, Component.literal(Caster.status), cx, height / 2 + 90, 0xFF88CCFF);
     }
