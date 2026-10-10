@@ -13,6 +13,7 @@ final class ScreenTexture {
     final Identifier id = Identifier.fromNamespaceAndPath("chorus", "screen/" + serial++);
     private DynamicTexture texture;
     private int width, height, version = -1;
+    private int[] pixels = new int[0];
 
     boolean ready() { return texture != null && version != -1; }
 
@@ -31,13 +32,21 @@ final class ScreenTexture {
         var image = texture.getPixels();
         if (image == null) return;
         version = page.version();
-        long s = MemoryUtil.memAddress(src), d = image.getPointer();
-        long n = Math.min((long) w * h, src.capacity() / 4);
-        for (long i = 0; i < n; i++) {
-            int v = MemoryUtil.memGetInt(s + i * 4);
-            MemoryUtil.memPutInt(d + i * 4, (v & 0x0000FF00) | ((v >>> 16) & 0xFF) | ((v & 0xFF) << 16) | 0xFF000000);
+        long t0 = System.nanoTime();
+        int n = w * h;
+        if (pixels.length < n) pixels = new int[n];
+        src.duplicate().order(java.nio.ByteOrder.nativeOrder()).asIntBuffer().get(0, pixels, 0, Math.min(n, src.capacity() / 4));
+        for (int i = 0; i < n; i++) {
+            int v = pixels[i];
+            pixels[i] = (v & 0xFF00FF00) | ((v >>> 16) & 0xFF) | ((v & 0xFF) << 16) | 0xFF000000;
         }
+        long t1 = System.nanoTime();
+        MemoryUtil.memIntBuffer(image.getPointer(), n).put(pixels, 0, n);
+        long t2 = System.nanoTime();
         texture.upload();
+        Stats.convertNs.addAndGet(t1 - t0);
+        Stats.uploadNs.addAndGet(System.nanoTime() - t2);
+        Stats.converts.incrementAndGet();
     }
 
     void release() {

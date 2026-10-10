@@ -33,6 +33,10 @@ public final class Uploader {
     public static volatile String status = "";
     static volatile double fraction = -1;
     static volatile boolean busy;
+    private static volatile String last = "";
+
+    /** The file name of the last video sent successfully (tests play it). */
+    public static String lastName() { return last; }
 
     private static BlockPos pos;
     private static Path file;
@@ -195,7 +199,7 @@ public final class Uploader {
         if (!ready) return;
         switch (a.state()) {
             case Media.Ack.PROGRESS -> { started = true; acked = a.received(); fraction = (double) acked / size; }
-            case Media.Ack.DONE -> finish(tr("done"));
+            case Media.Ack.DONE -> { last = name; finish(tr("done")); }
             default -> finish(tr("failed") + " " + a.message());
         }
     }

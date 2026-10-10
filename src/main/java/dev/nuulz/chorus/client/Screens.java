@@ -19,7 +19,7 @@ import net.minecraft.world.phys.Vec3;
  * Only the nearest {@link ClientConfig#maxActive} within the radius run Chromium; the rest are closed.
  * Textures upload only while the renderer draws them, so a screen nobody looks at costs no uploads.
  */
-final class Screens {
+public final class Screens {
     static final class Live {
         PaneView view;
         final ScreenTexture texture = new ScreenTexture();
@@ -27,9 +27,13 @@ final class Screens {
         int revision = -1;
         /** Someone is using the page by hand (BrowseScreen): don't move or cover it. */
         boolean browsing;
+        int fps = -1;
         private boolean unpinned;
         long nextSync;
     }
+
+    /** Steady-state resync interval; a change in the screen's state resyncs at once. */
+    static final int SYNC_TICKS = 40;
 
     private static final Map<ScreenBlockEntity, Live> live = new HashMap<>();
     private static final List<ScreenBlockEntity> loaded = new ArrayList<>();
@@ -46,6 +50,13 @@ final class Screens {
 
     static Live get(ScreenBlockEntity be) { return live.get(be); }
 
+    public static String debug() {
+        return "loaded=" + loaded.size() + " live=" + live.size() + " browserReady=" + Browser.ready()
+            + " views=" + live.values().stream().filter(l -> l.view != null).count()
+            + " ready=" + live.values().stream().filter(l -> l.texture.ready()).count()
+            + " urls=" + loaded.stream().map(b -> "[" + b.url + "]").toList();
+    }
+
     /** Chromium's work; called every frame from the renderer and every tick as a fallback. */
     static void pump() {
         long now = System.nanoTime();
@@ -55,6 +66,11 @@ final class Screens {
     }
 
     static void tick() {
+        long t0 = System.nanoTime();
+        try { tickScreens(); } finally { Stats.syncNs.addAndGet(System.nanoTime() - t0); Stats.syncs.incrementAndGet(); }
+    }
+
+    private static void tickScreens() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) { closeAll(); return; }
         pump();
@@ -69,6 +85,7 @@ final class Screens {
             .limit(ClientConfig.maxActive).toList();
 
         for (ScreenBlockEntity be : List.copyOf(live.keySet())) if (!wanted.contains(be)) close(be);
+        Tuner.tick(mc);
         if (wanted.isEmpty()) return;
         if (!Browser.ready()) { Browser.prepare(); return; }
 
@@ -91,6 +108,8 @@ final class Screens {
             }
             if (l.view.width() != ClientConfig.width || l.view.height() != ClientConfig.height)
                 l.view.resize(ClientConfig.width, ClientConfig.height);
+            int fps = browsingNow.contains(be) ? 30 : Math.clamp(Tuner.budget() / Math.max(1, wanted.size()), 5, 30);
+            if (fps != l.fps) { l.view.setWindowlessFrameRate(fps); l.fps = fps; }
             if (l.browsing) {
                 if (!l.unpinned) { l.view.executeJavaScript(UNPIN, "", 0); l.unpinned = true; }
                 continue;
@@ -99,7 +118,7 @@ final class Screens {
             boolean fresh = l.revision != be.revision;
             if (!fresh && time < l.nextSync) continue;
             l.revision = be.revision;
-            l.nextSync = time + 10;
+            l.nextSync = time + SYNC_TICKS;
             double d = Vec3.atCenterOf(be.getBlockPos()).distanceTo(eye);
             double fall = Math.max(0, 1 - d / radius);
             double vol = fall * fall * ClientConfig.volume / 100.0;
