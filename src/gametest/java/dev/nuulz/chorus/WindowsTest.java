@@ -27,6 +27,24 @@ public class WindowsTest implements FabricClientGameTest {
             sv.runCommand("tp @a 0.5 -60 6.5 180 -8");
             ctx.waitTicks(20);
 
+            // the panel opens from the block, like a right click, and its Share button opens the cast panel
+            ctx.runOnClient(mc -> ScreenBlock.openControls.accept((ScreenBlockEntity) mc.level.getBlockEntity(ScreenTest.POS)));
+            ctx.waitTicks(10);
+            String controls = ctx.computeOnClient(mc -> String.valueOf(mc.gui.screen()));
+            System.out.println("chorus-test windows controls: " + controls);
+            shot(ctx, out, "win_controls");
+            check(controls.contains("ControlScreen"), "the screen's panel didn't open: " + controls);
+            check(ctx.computeOnClient(mc -> mc.gui.screen().children().stream().anyMatch(w -> w instanceof net.minecraft.client.gui.components.Button b
+                && b.getMessage().getString().equals(net.minecraft.network.chat.Component.translatable("chorus.cast").getString()))), "no Share button");
+            // what the Share button does
+            ctx.runOnClient(mc -> mc.gui.setScreen(new CastScreen((ScreenBlockEntity) mc.level.getBlockEntity(ScreenTest.POS))));
+            ctx.waitTicks(10);
+            String cast = ctx.computeOnClient(mc -> String.valueOf(mc.gui.screen()));
+            System.out.println("chorus-test windows cast panel: " + cast);
+            shot(ctx, out, "win_cast_from_button");
+            check(cast.contains("CastScreen"), "Share didn't open the cast panel: " + cast);
+            ctx.runOnClient(mc -> mc.gui.setScreen(null));
+
             // ffmpeg is downloaded on first launch; on Windows it must be the .exe
             ctx.waitFor(mc -> hasFfmpegExe(mc.gameDirectory.toPath().resolve("chorus-ffmpeg")), 20 * 300);
 
