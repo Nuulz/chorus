@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# Abre Minecraft 26.2 con Chorus desde esta carpeta. Se configura en jugar.conf (al lado de este archivo).
+#
+#   ./jugar            compila Chorus y abre Prism con la instancia chorus-26.2
+#   ./jugar --test     corre las pruebas de juego (pantallas, video propio, navegar, transmitir, medir)
+#   ./jugar --ayuda
+set -euo pipefail
+
+AQUI="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+CONF="$AQUI/jugar.conf"
+PRISM_DATA="${PRISM_DATA:-$HOME/.local/share/PrismLauncher}"
+
+info() { printf '\033[1;34m[chorus]\033[0m %s\n' "$*"; }
+falla() { printf '\033[1;31m[chorus]\033[0m %s\n' "$*" >&2; exit 1; }
+
+[ -f "$CONF" ] || falla "No encuentro $CONF"
+# shellcheck disable=SC1090
+source "$CONF"
+INSTANCIA="${INSTANCIA:-chorus-26.2}"; CUENTA="${CUENTA:-}"; UNIRSE="${UNIRSE:-}"
+FABRIC_API="${FABRIC_API:-0.161.0+26.2}"; MODMENU="${MODMENU:-20.0.3}"; LOADER="${LOADER:-0.19.5}"
+export JAVA_HOME="${JAVA_HOME:-$HOME/.jdks/jdk-25.0.4.1+1}"
+
+case "${1:-}" in
+  --ayuda|-h|--help) sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  --test)
+    info "Corriendo las pruebas de juego (se abre Minecraft varias veces) ..."
+    (cd "$AQUI" && bash gradlew runClientGameTest -q) ; exit $?
+    ;;
+  "") ;;
+  *) falla "Opción desconocida: $1 (usa --ayuda)" ;;
+esac
+
+command -v prismlauncher >/dev/null || falla "No encuentro prismlauncher."
+command -v jq >/dev/null || falla "Falta jq."
+
+info "Compilando Chorus ..."
+(cd "$AQUI" && bash gradlew build -x test -q) || falla "No compiló."
+JAR="$(ls -t "$AQUI"/build/libs/chorus-*.jar 2>/dev/null | grep -v -- '-sources' | head -1 || true)"
+[ -n "$JAR" ] || falla "No hay jar compilado."
+(cd "$AQUI" && bash gradlew --stop -q >/dev/null 2>&1) || true  # libera la RAM del daemon de Gradle
+
+INST="$PRISM_DATA/instances/$INSTANCIA"
+MODS="$INST/.minecraft/mods"
+
+if [ ! -d "$INST" ]; then
+  info "Creando la instancia \"$INSTANCIA\" en Prism (Fabric 26.2) ..."
+  mkdir -p "$MODS"
+  cat >"$INST/instance.cfg" <<CFG
+[General]
+ConfigVersion=1.2
+InstanceType=OneSix
+name=$INSTANCIA
+iconKey=default
+CFG
+  cat >"$INST/mmc-pack.json" <<JSON
+{
+  "components": [
+    { "uid": "net.minecraft", "version": "26.2", "important": true },
+    { "uid": "net.fabricmc.fabric-loader", "version": "$LOADER" }
+  ],
+  "formatVersion": 1
+}
+JSON
+fi
+mkdir -p "$MODS"
+
+# Dependencias exactas, bajadas de Modrinth la primera vez.
+bajar_mod() {
+  local slug="$1" version="$2" info url archivo
+  info="$(curl -fsG "https://api.modrinth.com/v2/project/$slug/version" \
+      --data-urlencode 'loaders=["fabric"]' --data-urlencode 'game_versions=["26.2"]' 2>/dev/null \
+    | jq -r --arg v "$version" '[.[] | select(.version_number == $v)][0] | .files | (map(select(.primary)) + .)[0] | "\(.url) \(.filename)"' 2>/dev/null || true)"
+  url="${info%% *}"; archivo="${info#* }"
+  if [ -z "$info" ] || [ "$url" = null ]; then
+    ls "$MODS/$slug"-*.jar >/dev/null 2>&1 && { info "Sin respuesta de Modrinth; sigo con el $slug que ya está."; return 0; }
+    falla "No encontré $slug $version para 26.2 en Modrinth."
+  fi
+  [ -f "$MODS/$archivo" ] && return 0
+  info "Bajando $archivo ..."
+  curl -fsL "$url" -o "$MODS/$archivo" || falla "No pude bajar $archivo."
+}
+bajar_mod fabric-api "$FABRIC_API"
+bajar_mod modmenu "$MODMENU"
+
+rm -f "$MODS"/chorus-*.jar
+cp "$JAR" "$MODS/"
+
+args=(--launch "$INSTANCIA")
+[ -n "$CUENTA" ] && args+=(--profile "$CUENTA")
+[ -n "$UNIRSE" ] && args+=(--server "$UNIRSE")
+info "Abriendo Prism: instancia $INSTANCIA${CUENTA:+, cuenta $CUENTA} ($(basename "$JAR"))"
+setsid prismlauncher "${args[@]}" >/dev/null 2>&1 &
+exit 0
