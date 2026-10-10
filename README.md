@@ -30,4 +30,7 @@ worlds, where the host owns the world.
   "Chorus" output plus a loopback to your speakers); on Windows it's the whole computer's sound. Your own screen
   stays muted. Quality: 480p, 720p, 1080p or 1080p at 60 fps (bitrate 1.2 to 8 Mbps).
 
+- Size: each screen has a size in blocks (1 to 8 wide, 1 by default in the panel's Size button). The picture
+  keeps the same resolution, so bigger screens are a bit softer but everyone sees more of it.
+
 Config: `config/chorus-server.properties` and `config/chorus-client.properties`.

@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component;
 final class ControlScreen extends Screen {
     private final ScreenBlockEntity be;
     private EditBox url;
+    private static final int[] SIZES = {1, 2, 3, 4, 6, 8};
 
     ControlScreen(ScreenBlockEntity be) {
         super(Component.translatable("block.chorus.screen"));
@@ -44,6 +45,12 @@ final class ControlScreen extends Screen {
             .bounds(x + w / 2 + 2, by + 28, w / 2 - 2, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("chorus.cast"), b -> minecraft.gui.setScreen(new CastScreen(be)))
             .bounds(x, by + 52, w, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("chorus.size", be.size), b -> {
+                int next = SIZES[(java.util.Arrays.binarySearch(SIZES, be.size) + 1) % SIZES.length];
+                ClientPlayNetworking.send(new ControlPayload(be.getBlockPos(), ControlPayload.SIZE, "", next));
+                be.size = next;
+                b.setMessage(Component.translatable("chorus.size", next));
+            }).bounds(x, by + 76, w, 20).build());
     }
 
     private void seek(long delta) {
@@ -72,10 +79,10 @@ final class ControlScreen extends Screen {
             if (got >= 0 && got < 1) status += "  ·  " + Component.translatable("chorus.downloading", (int) (got * 100)).getString();
         }
         if (Browser.failed()) status = Component.translatable("chorus.browser_failed").getString();
-        g.centeredText(font, Component.literal(status), cx, height / 2 + 68, 0xFFAAAAAA);
+        g.centeredText(font, Component.literal(status), cx, height / 2 + 92, 0xFFAAAAAA);
         String up = Uploader.status;
         if (Uploader.fraction >= 0) up += " " + (int) (Uploader.fraction * 100) + "%";
-        if (!up.isEmpty()) g.centeredText(font, Component.literal(up), cx, height / 2 + 82, 0xFF88CCFF);
+        if (!up.isEmpty()) g.centeredText(font, Component.literal(up), cx, height / 2 + 106, 0xFF88CCFF);
     }
 
     @Override public boolean isPauseScreen() { return false; }

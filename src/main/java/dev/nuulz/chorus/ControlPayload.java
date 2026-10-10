@@ -9,7 +9,7 @@ import net.minecraft.resources.Identifier;
 
 /** A player asking the server to change a screen. The server decides; clients only follow its state. */
 public record ControlPayload(BlockPos pos, int action, String url, long ms) implements CustomPacketPayload {
-    public static final int SET_URL = 0, PLAY = 1, PAUSE = 2, SEEK = 3, STOP = 4;
+    public static final int SET_URL = 0, PLAY = 1, PAUSE = 2, SEEK = 3, STOP = 4, SIZE = 5;
 
     public static final Type<ControlPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath(Chorus.ID, "control"));
     public static final StreamCodec<RegistryFriendlyByteBuf, ControlPayload> CODEC = StreamCodec.composite(

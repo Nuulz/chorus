@@ -52,5 +52,6 @@
   "chorus.cast.source_desktop": "Pantalla completa",
   "chorus.cast.needs_gst": "Instala el plugin de PipeWire para GStreamer: sudo pacman -S gst-plugin-pipewire",
   "chorus.cast.no_frames": "Todavía no llega imagen de esa ventana. Revisa la captura en tu escritorio.",
-  "chorus.cast.frames": "cuadros"
+  "chorus.cast.frames": "cuadros",
+  "chorus.size": "Tamaño: %s bloques de ancho"
 }

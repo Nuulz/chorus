@@ -16,11 +16,10 @@ import net.minecraft.world.phys.Vec3;
 
 /** Draws the page as a 16:9 panel standing on the block, fullbright, facing the way it was placed. */
 final class ScreenRenderer implements BlockEntityRenderer<ScreenBlockEntity, ScreenRenderer.State> {
-    static final float WIDTH = 3f, HEIGHT = WIDTH * 9 / 16;
-
     static final class State extends BlockEntityRenderState {
         Identifier texture;
         Direction facing = Direction.NORTH;
+        float width = 3f;
     }
 
     @Override public State createRenderState() { return new State(); }
@@ -29,6 +28,7 @@ final class ScreenRenderer implements BlockEntityRenderer<ScreenBlockEntity, Scr
     public void extractRenderState(ScreenBlockEntity be, State s, float partial, Vec3 camera, ModelFeatureRenderer.CrumblingOverlay crumbling) {
         BlockEntityRenderer.super.extractRenderState(be, s, partial, camera, crumbling);
         s.facing = be.getBlockState().getValue(ScreenBlock.FACING);
+        s.width = be.size;
         s.texture = null;
         Screens.pump();
         Screens.Live l = Screens.get(be);
@@ -43,7 +43,7 @@ final class ScreenRenderer implements BlockEntityRenderer<ScreenBlockEntity, Scr
         pose.pushPose();
         pose.translate(0.5f, 0f, 0.5f);
         pose.mulPose(Axis.YP.rotationDegrees(-s.facing.toYRot()));
-        float x = WIDTH / 2, y0 = 1.02f, y1 = y0 + HEIGHT;
+        float x = s.width / 2, y0 = 1.02f, y1 = y0 + s.width * 9 / 16;
         out.submitCustomGeometry(pose, RenderTypes.text(s.texture), (p, v) -> {
             int light = 0xF000F0;
             v.addVertex(p, -x, y0, 0).setColor(-1).setUv(0, 1).setLight(light);

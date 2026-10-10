@@ -137,6 +137,7 @@ public final class Chorus implements ModInitializer {
             case ControlPayload.PAUSE -> screen.play(false);
             case ControlPayload.SEEK -> screen.seek(p.ms());
             case ControlPayload.STOP -> screen.load("");
+            case ControlPayload.SIZE -> screen.setSize((int) p.ms());
             default -> { }
         }
     }
