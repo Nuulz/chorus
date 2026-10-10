@@ -388,6 +388,18 @@ public final class Caster {
 
     public static void stopForTest() { stop(); }
 
+    /** For tests: a real cast with the panel's choices ([source] "desktop" or "window:<title>" on Windows). */
+    public static void startForTest(BlockPos target, String app, String source) { start(target, app, source); }
+
+    public static boolean runningForTest() { return running; }
+
+    /** For tests: refreshes the Windows window list and gives the titles once it's loaded. */
+    public static List<String> windowTitlesForTest() throws InterruptedException {
+        WindowList.refresh();
+        for (int i = 0; i < 200 && WindowList.loading(); i++) Thread.sleep(50);
+        return WindowList.titles();
+    }
+
     /** Reads ffmpeg's progress file (every 2 s) and says so when no picture is arriving. */
     private static void watchFrames() {
         if (progress == null || System.currentTimeMillis() % 2000 > 60) return;
