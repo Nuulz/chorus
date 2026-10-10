@@ -44,5 +44,10 @@
   "chorus.cast.ended": "La transmisión terminó",
   "chorus.cast.stopped": "Dejaste de transmitir",
   "chorus.cast.failed": "No se pudo transmitir:",
-  "chorus.cast.linux_only": "Por ahora la transmisión funciona solo en Linux."
+  "chorus.cast.linux_only": "Por ahora la transmisión funciona solo en Linux.",
+  "chorus.cast.quality": "Calidad",
+  "chorus.cast.source": "Mostrar",
+  "chorus.cast.refresh": "Actualizar lista de ventanas",
+  "chorus.cast.unsupported": "Transmitir no está disponible en este sistema todavía.",
+  "chorus.cast.source_desktop": "Pantalla completa"
 }

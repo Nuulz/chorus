@@ -19,7 +19,10 @@ public class CastTest implements FabricClientGameTest {
             sv.runCommand("setblock 0 -60 0 chorus:screen[facing=south]");
             sv.runCommand("tp @a 0.5 -60 6.5 180 -8");
             ctx.waitTicks(20);
-            ctx.runOnClient(mc -> Caster.startTest(ScreenTest.POS));
+            ctx.runOnClient(mc -> {
+                dev.nuulz.chorus.client.ClientConfig.set("cast_quality", System.getProperty("chorus.quality", "720"));
+                Caster.startTest(ScreenTest.POS);
+            });
             ctx.waitTicks(20 * 15);
             ctx.runOnClient(mc -> System.out.println("chorus-test cast status: " + Caster.status));
             sv.runOnServer(s -> System.out.println("chorus-test cast url: " + ((ScreenBlockEntity) s.overworld().getBlockEntity(ScreenTest.POS)).url));

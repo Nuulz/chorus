@@ -44,5 +44,10 @@
   "chorus.cast.ended": "Sharing ended",
   "chorus.cast.stopped": "Stopped sharing",
   "chorus.cast.failed": "Couldn't share:",
-  "chorus.cast.linux_only": "For now, sharing works on Linux only."
+  "chorus.cast.linux_only": "For now, sharing works on Linux only.",
+  "chorus.cast.quality": "Quality",
+  "chorus.cast.source": "Show",
+  "chorus.cast.refresh": "Refresh window list",
+  "chorus.cast.unsupported": "Sharing isn't available on this system yet.",
+  "chorus.cast.source_desktop": "Whole screen"
 }

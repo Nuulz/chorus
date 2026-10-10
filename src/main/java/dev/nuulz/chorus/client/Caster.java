@@ -23,7 +23,23 @@ import net.minecraft.network.chat.Component;
  * here → sent through the Minecraft connection. One cast per player.
  */
 public final class Caster {
-    static final int W = 1280, H = 720, FPS = 30;
+    /** Picture size, frame rate and bitrate of a cast; set from the screen's quality setting. */
+    record Quality(String id, int height, int fps, int kbps) {
+        int width() { return height * 16 / 9; }
+    }
+
+    static final Quality[] QUALITIES = {
+        new Quality("480", 480, 30, 1200),
+        new Quality("720", 720, 30, 2500),
+        new Quality("1080", 1080, 30, 5000),
+        new Quality("1080x60", 1080, 60, 8000),
+    };
+
+    static Quality quality() {
+        String id = ClientConfig.castQuality();
+        for (Quality q : QUALITIES) if (q.id().equals(id)) return q;
+        return QUALITIES[1];
+    }
 
     public static volatile String status = "";
     static volatile boolean running;
@@ -39,36 +55,46 @@ public final class Caster {
 
     private record Element(int kind, byte[] data) {}
 
-    /** Linux with a Wayland/X desktop portal; elsewhere not yet. */
+    static boolean windows() { return System.getProperty("os.name").toLowerCase().contains("windows"); }
+
     static boolean supported() {
-        return System.getProperty("os.name").toLowerCase().contains("linux");
+        return windows() || System.getProperty("os.name").toLowerCase().contains("linux");
     }
 
-    static synchronized void start(BlockPos target, String app) {
+    /** [audio]: an app's name (Linux), {@link AudioRoute#ALL} or {@link AudioRoute#NONE}. [source]: Windows only, "desktop" or "window:<title>". */
+    static synchronized void start(BlockPos target, String app, String source) {
         if (running) return;
         running = true;
         stopping = false;
         begun = false;
         pos = target;
         status = tr("starting");
-        Thread t = new Thread(() -> run(app), "chorus-cast");
+        Thread t = new Thread(() -> run(app, source), "chorus-cast");
         t.setDaemon(true);
         t.start();
     }
 
     /** For tests: a generated picture and tone instead of a window. */
-    public static void startTest(BlockPos target) { start(target, "test"); }
+    public static void startTest(BlockPos target) { start(target, "test", "test"); }
 
-    private static void run(String app) {
+    private static void run(String app, String source) {
         try {
             Encoders.Encoder enc = Encoders.best();
+            Quality q = quality();
+            int W = q.width(), H = q.height(), FPS = q.fps();
             List<String> ff = new ArrayList<>(List.of(FFmpeg.ffmpeg(), "-v", "error"));
             ff.addAll(enc.before());
             ProcessBuilder video = null;
             boolean test = app.equals("test");
+            boolean sound;
             if (test) {
                 ff.addAll(List.of("-re", "-f", "lavfi", "-i", "testsrc2=s=" + W + "x" + H + ":r=" + FPS,
                     "-re", "-f", "lavfi", "-i", "sine=frequency=330"));
+                sound = true;
+            } else if (windows()) {
+                ff.addAll(windowsVideo(source, FPS));
+                sound = !app.equals(AudioRoute.NONE);
+                if (sound) ff.addAll(List.of("-f", "wasapi", "-thread_queue_size", "1024", "-i", "default"));
             } else {
                 portal = new Portal();
                 status = tr("pick");
@@ -80,19 +106,21 @@ public final class Caster {
                 ff.addAll(List.of("-f", "rawvideo", "-pix_fmt", "yuv420p", "-video_size", W + "x" + H, "-framerate", "" + FPS,
                     "-thread_queue_size", "64", "-i", "pipe:0"));
                 audio = new AudioRoute(app);
-                if (audio.source != null) ff.addAll(List.of("-f", "pulse", "-thread_queue_size", "1024", "-i", audio.source));
+                sound = audio.source != null;
+                if (sound) ff.addAll(List.of("-f", "pulse", "-thread_queue_size", "1024", "-i", audio.source));
             }
-            boolean sound = test || audio.source != null;
             ff.addAll(List.of("-map", "0:v"));
             if (sound) ff.addAll(List.of("-map", "1:a"));
-            if (!enc.hw().isEmpty()) ff.addAll(List.of("-vf", enc.hw()));
-            ff.addAll(enc.live());
+            if (windows()) ff.addAll(List.of("-vf", "scale=-2:" + H + ",fps=" + FPS + ",format=" + (enc.hw().isEmpty() ? "yuv420p" : "nv12")));
+            else if (!enc.hw().isEmpty()) ff.addAll(List.of("-vf", enc.hw()));
+            ff.addAll(enc.live().apply(q.kbps()));
             ff.addAll(List.of("-g", "" + FPS * 2));
             if (enc.hw().isEmpty()) ff.addAll(List.of("-pix_fmt", "yuv420p"));
             if (sound) ff.addAll(List.of("-c:a", "libopus", "-b:a", "128k"));
             ff.addAll(List.of("-f", "webm", "-live", "1", "-cluster_time_limit", "1000", "pipe:1"));
 
             Path log = FabricLoader.getInstance().getGameDir().resolve("logs/chorus-cast.log");
+            Chorus.LOG.info("chorus: cast command {}", String.join(" ", ff));
             ProcessBuilder encode = new ProcessBuilder(ff).redirectError(ProcessBuilder.Redirect.to(log.toFile()));
             List<Process> ps;
             if (video != null) {
@@ -102,7 +130,7 @@ public final class Caster {
                 ps = List.of(encode.start());
             }
             synchronized (Caster.class) { processes.addAll(ps); }
-            status = tr("live") + " (" + enc.label() + ")";
+            status = tr("live") + " (" + enc.label() + ", " + q.height() + "p" + q.fps() + ")";
             Chorus.LOG.info("chorus: casting with {}", enc.label());
             split(ps.get(ps.size() - 1).getInputStream());
             if (!stopping) finish(tr("ended"));
@@ -110,6 +138,14 @@ public final class Caster {
             if (!stopping) Chorus.LOG.warn("chorus: cast failed", e);
             if (!stopping) finish(tr("failed") + " " + (e.getMessage() == null ? e : e.getMessage()));
         }
+    }
+
+    /** Windows screen or window through GDI (works on any GPU, no admin rights); scaled to the quality. */
+    private static List<String> windowsVideo(String source, int fps) {
+        List<String> in = new ArrayList<>();
+        in.addAll(List.of("-f", "gdigrab", "-framerate", "" + fps, "-draw_mouse", "1"));
+        in.addAll(List.of("-thread_queue_size", "64", "-i", source.startsWith("window:") ? "title=" + source.substring(7) : "desktop"));
+        return in;
     }
 
     // ---- WebM splitting ----------------------------------------------------------------------------

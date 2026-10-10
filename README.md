@@ -25,8 +25,9 @@ worlds, where the host owns the world.
   and open a video; "Share" sends its address to everyone. Settings (Mod Menu): accept any link, volume,
   live screens, range, quality.
 
-- Share my screen (Linux for now): the desktop portal's picker → GStreamer (`gst-plugin-pipewire`) → live
-  AV1/Opus WebM from ffmpeg → relayed by the server. Only the chosen app's sound goes in (a virtual
-  "Chorus" output plus a loopback to your speakers); your own screen stays muted.
+- Share my screen (Linux and Windows): the desktop portal's picker → GStreamer (`gst-plugin-pipewire`) → live
+  AV1/Opus WebM from ffmpeg → relayed by the server. On Linux only the chosen app's sound goes in (a virtual
+  "Chorus" output plus a loopback to your speakers); on Windows it's the whole computer's sound. Your own screen
+  stays muted. Quality: 480p, 720p, 1080p or 1080p at 60 fps (bitrate 1.2 to 8 Mbps).
 
 Config: `config/chorus-server.properties` and `config/chorus-client.properties`.

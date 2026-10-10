@@ -10,10 +10,12 @@ import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** Start or stop sharing your screen on this Chorus screen, choosing which sound goes with it. */
+/** Start or stop sharing your screen on this Chorus screen: what to show, its quality, and the sound. */
 final class CastScreen extends Screen {
+    private static final String DESKTOP = "desktop", WINDOW = "window:";
     private final ScreenBlockEntity be;
     private String app = AudioRoute.NONE;
+    private String source = DESKTOP;
 
     CastScreen(ScreenBlockEntity be) {
         super(Component.translatable("chorus.cast"));
@@ -24,34 +26,57 @@ final class CastScreen extends Screen {
     protected void init() {
         int w = 280, x = (width - w) / 2, y = height / 2 - 40;
         if (!Caster.supported()) return;
-        List<String> ids = new ArrayList<>(List.of(AudioRoute.NONE, AudioRoute.ALL));
-        Map<String, String> apps = AudioRoute.apps();
-        ids.addAll(apps.keySet());
-        if (!Caster.running) {
-            app = apps.isEmpty() ? AudioRoute.NONE : apps.keySet().iterator().next();
+        boolean idle = !Caster.running;
+        if (Caster.windows()) {
+            WindowList.refresh();
+            List<String> sources = new ArrayList<>(List.of(DESKTOP));
+            for (String t : WindowList.titles()) sources.add(WINDOW + t);
+            if (!sources.contains(source)) source = DESKTOP;
+            if (idle) addRenderableWidget(CycleButton.<String>builder(s -> Component.literal(
+                    s.equals(DESKTOP) ? Caster.tr("source_desktop") : s.substring(WINDOW.length())), source)
+                .withValues(sources)
+                .create(x, y - 28, w, 20, Component.translatable("chorus.cast.source"), (b, v) -> source = v));
+            addRenderableWidget(Button.builder(Component.translatable("chorus.cast.refresh"), b -> minecraft.gui.setScreen(new CastScreen(be)))
+                .bounds(x, y - 52, w, 20).build());
+        }
+        List<String> audio = new ArrayList<>(List.of(AudioRoute.NONE, AudioRoute.ALL));
+        Map<String, String> apps = Caster.windows() ? Map.of() : AudioRoute.apps();
+        audio.addAll(apps.keySet());
+        if (idle) {
+            app = apps.isEmpty() ? AudioRoute.NONE : app.equals(AudioRoute.NONE) ? AudioRoute.NONE : app;
             addRenderableWidget(CycleButton.<String>builder(id -> Component.literal(
                     id.equals(AudioRoute.NONE) ? Caster.tr("audio_none") : id.equals(AudioRoute.ALL) ? Caster.tr("audio_all") : apps.get(id)), app)
-                .withValues(ids)
+                .withValues(audio)
                 .create(x, y, w, 20, Component.translatable("chorus.cast.audio"), (b, v) -> app = v));
+            addRenderableWidget(CycleButton.<String>builder(id -> Component.literal(qualityLabel(id)), ClientConfig.castQuality())
+                .withValues(java.util.Arrays.stream(Caster.QUALITIES).map(Caster.Quality::id).toList())
+                .create(x, y + 28, w, 20, Component.translatable("chorus.cast.quality"), (b, v) -> ClientConfig.set("cast_quality", v)));
         }
         addRenderableWidget(Button.builder(Component.translatable(Caster.running ? "chorus.cast.stop" : "chorus.cast.start"), b -> {
             if (Caster.running) Caster.stop();
-            else Caster.start(be.getBlockPos(), app);
+            else Caster.start(be.getBlockPos(), app, source);
             onClose();
-        }).bounds(x, y + 28, w, 20).build());
+        }).bounds(x, y + 56, w, 20).build());
+    }
+
+    static String qualityLabel(String id) {
+        for (Caster.Quality q : Caster.QUALITIES)
+            if (q.id().equals(id)) return q.height() + "p" + (q.fps() == 60 ? " 60 fps" : "") + " · " + (q.kbps() / 1000.0) + " Mbps";
+        return id;
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float partial) {
         super.extractRenderState(g, mx, my, partial);
         int cx = width / 2, y = height / 2 - 70;
-        g.centeredText(font, title, cx, y, 0xFFFFFFFF);
         if (!Caster.supported()) {
-            g.centeredText(font, Component.translatable("chorus.cast.linux_only"), cx, y + 30, 0xFFFFAA55);
+            g.centeredText(font, title, cx, y, 0xFFFFFFFF);
+            g.centeredText(font, Component.translatable("chorus.cast.unsupported"), cx, y + 30, 0xFFFFAA55);
             return;
         }
-        g.centeredText(font, Component.translatable("chorus.cast.hint"), cx, y + 14, 0xFFAAAAAA);
-        g.centeredText(font, Component.literal(Caster.status), cx, height / 2 + 20, 0xFF88CCFF);
+        g.centeredText(font, title, cx, y - 14, 0xFFFFFFFF);
+        if (!Caster.running) g.centeredText(font, Component.translatable("chorus.cast.hint"), cx, height / 2 + 26, 0xFFAAAAAA);
+        g.centeredText(font, Component.literal(Caster.status), cx, height / 2 + 40, 0xFF88CCFF);
     }
 
     @Override public boolean isPauseScreen() { return false; }

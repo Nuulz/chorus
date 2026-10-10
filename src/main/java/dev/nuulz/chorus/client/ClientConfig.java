@@ -22,6 +22,7 @@ public final class ClientConfig {
         d.setProperty("allowed_hosts", UrlPolicy.DEFAULT_HOSTS);
         d.setProperty("allow_any_link", "false");
         d.setProperty("cast_restore_token", "");
+        d.setProperty("cast_quality", "720");
         p = new Props(FabricLoader.getInstance().getConfigDir().resolve("chorus-client.properties"), d);
         maxActive = p.num("max_active_screens", 0, 4);
         width = p.num("width", 256, 1280);
@@ -32,12 +33,13 @@ public final class ClientConfig {
         urls = new UrlPolicy(p.str("allowed_hosts"), anyLink);
     }
 
-    static void set(String key, Object value) {
+    public static void set(String key, Object value) {
         p.set(key, value);
         load();
     }
 
     static String castToken() { return p.str("cast_restore_token"); }
+    static String castQuality() { return p.str("cast_quality"); }
 
     private ClientConfig() {}
 }
