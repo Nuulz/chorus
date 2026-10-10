@@ -87,6 +87,16 @@ public final class Caster {
     /** For tests: a generated picture and tone instead of a window. */
     public static void startTest(BlockPos target) { start(target, "test", "test"); }
 
+    /**
+     * The pumped pictures, stamped with the wall clock like the sound, so a picture that comes late
+     * stays in its real place instead of pushing the whole video behind the audio. A short queue keeps
+     * ffmpeg from building up delay.
+     */
+    private static List<String> rawInput(int w, int h, int fps) {
+        return List.of("-f", "rawvideo", "-pix_fmt", "yuv420p", "-video_size", w + "x" + h, "-framerate", "" + fps,
+            "-use_wallclock_as_timestamps", "1", "-thread_queue_size", "4", "-i", "pipe:0");
+    }
+
     /** Raw I420 pictures of the given size from a GStreamer source, as fast as they come (no fixed rate). */
     private static ProcessBuilder gstreamer(List<String> source, int w, int h) {
         List<String> cmd = new ArrayList<>(List.of("gst-launch-1.0", "-q"));
@@ -165,8 +175,7 @@ public final class Caster {
             if (app.equals("gsttest")) {
                 // a slow, damage-like source (2 pictures a second) through the same pump as a real window
                 video = gstreamer(List.of("videotestsrc", "is-live=true", "pattern=ball", "!", "video/x-raw,framerate=2/1"), W, H);
-                ff.addAll(List.of("-f", "rawvideo", "-pix_fmt", "yuv420p", "-video_size", W + "x" + H, "-framerate", "" + FPS,
-                    "-thread_queue_size", "64", "-i", "pipe:0"));
+                ff.addAll(rawInput(W, H, FPS));
                 app = AudioRoute.NONE;
                 test = false;
             }
@@ -188,11 +197,10 @@ public final class Caster {
                 if (!portal.pick(ClientConfig.castToken())) { finish(tr("cancelled")); return; }
                 if (portal.restoreToken != null) ClientConfig.set("cast_restore_token", portal.restoreToken);
                 video = gstreamer(List.of("pipewiresrc", "path=" + portal.node, "always-copy=true"), W, H);
-                ff.addAll(List.of("-f", "rawvideo", "-pix_fmt", "yuv420p", "-video_size", W + "x" + H, "-framerate", "" + FPS,
-                    "-thread_queue_size", "64", "-i", "pipe:0"));
+                ff.addAll(rawInput(W, H, FPS));
                 audio = new AudioRoute(app, !ClientConfig.hearProjector());
                 sound = audio.source != null;
-                if (sound) ff.addAll(List.of("-f", "pulse", "-thread_queue_size", "1024", "-i", audio.source));
+                if (sound) ff.addAll(List.of("-f", "pulse", "-use_wallclock_as_timestamps", "1", "-thread_queue_size", "1024", "-i", audio.source));
             }
             ff.addAll(List.of("-map", "0:v"));
             if (sound) ff.addAll(List.of("-map", "1:a"));
