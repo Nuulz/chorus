@@ -24,6 +24,7 @@ public final class ClientConfig {
         d.setProperty("cast_restore_token", "");
         d.setProperty("cast_quality", "720");
         d.setProperty("cast_hear_projector", "false");
+        d.setProperty("cast_audio_delay_ms", "0");
         p = new Props(FabricLoader.getInstance().getConfigDir().resolve("chorus-client.properties"), d);
         maxActive = p.num("max_active_screens", 0, 4);
         width = p.num("width", 256, 1280);
@@ -42,6 +43,7 @@ public final class ClientConfig {
     static String castToken() { return p.str("cast_restore_token"); }
     static String castQuality() { return p.str("cast_quality"); }
     static boolean hearProjector() { return p.flag("cast_hear_projector"); }
+    static int castAudioDelay() { return Math.clamp(p.num("cast_audio_delay_ms", -1000, 1000), -1000, 1000); }
 
     private ClientConfig() {}
 }

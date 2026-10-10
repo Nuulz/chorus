@@ -48,6 +48,13 @@ public final class CastScreen extends Screen {
                     id.equals(AudioRoute.NONE) ? Caster.tr("audio_none") : id.equals(AudioRoute.ALL) ? Caster.tr("audio_all") : apps.get(id)), app)
                 .withValues(audio)
                 .create(x, y, w, 20, Component.translatable("chorus.cast.audio"), (b, v) -> app = v));
+            List<Integer> delays = new ArrayList<>();
+            for (int ms = -500; ms <= 1000; ms += 50) delays.add(ms);
+            int current = ClientConfig.castAudioDelay();
+            if (!delays.contains(current)) current = 0;
+            addRenderableWidget(CycleButton.<Integer>builder(ms -> Component.translatable("chorus.cast.delay_value", (ms > 0 ? "+" : "") + ms), current)
+                .withValues(delays)
+                .create(x, y + 84, w, 20, Component.translatable("chorus.cast.delay"), (b, ms) -> ClientConfig.set("cast_audio_delay_ms", ms)));
             if (!Caster.windows()) addRenderableWidget(CycleButton.onOffBuilder(ClientConfig.hearProjector())
                 .create(x, y + 56, w, 20, Component.translatable("chorus.cast.hear_projector"), (b, on) -> ClientConfig.set("cast_hear_projector", on)));
             addRenderableWidget(CycleButton.<String>builder(id -> Component.literal(qualityLabel(id)), ClientConfig.castQuality())
@@ -58,7 +65,7 @@ public final class CastScreen extends Screen {
             if (Caster.running) Caster.stop();
             else Caster.start(be.getBlockPos(), app, source);
             minecraft.gui.setScreen(new net.minecraft.client.gui.screens.PauseScreen(true));
-        }).bounds(x, y + (Caster.running ? 0 : 84), w, 20).build());
+        }).bounds(x, y + (Caster.running ? 0 : 112), w, 20).build());
     }
 
     static String qualityLabel(String id) {
@@ -81,9 +88,9 @@ public final class CastScreen extends Screen {
             boolean projector = ClientConfig.hearProjector() && !Caster.windows();
             boolean oneApp = !app.equals(AudioRoute.NONE) && !app.equals(AudioRoute.ALL);
             String hint = !projector ? "chorus.cast.hint" : oneApp ? "chorus.cast.hint_projector" : "chorus.cast.hint_projector_app";
-            g.centeredText(font, Component.translatable(hint), cx, height / 2 + 76, projector && !oneApp ? 0xFFFFAA55 : 0xFFAAAAAA);
+            g.centeredText(font, Component.translatable(hint), cx, height / 2 + 104, projector && !oneApp ? 0xFFFFAA55 : 0xFFAAAAAA);
         }
-        g.centeredText(font, Component.literal(Caster.status), cx, height / 2 + 90, 0xFF88CCFF);
+        g.centeredText(font, Component.literal(Caster.status), cx, height / 2 + 118, 0xFF88CCFF);
     }
 
     @Override public boolean isPauseScreen() { return false; }

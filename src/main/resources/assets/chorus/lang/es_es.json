@@ -57,5 +57,7 @@
   "chorus.cast.captured": "capturados",
   "chorus.cast.hear_projector": "Escuchar desde el proyector",
   "chorus.cast.hint_projector": "Se silencia en tu PC; lo oyes en el juego, unos segundos tarde.",
-  "chorus.cast.hint_projector_app": "Para oírlo desde el proyector, elige una app en Sonido."
+  "chorus.cast.hint_projector_app": "Para oírlo desde el proyector, elige una app en Sonido.",
+  "chorus.cast.delay": "Sincronía del sonido",
+  "chorus.cast.delay_value": "%s ms"
 }

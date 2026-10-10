@@ -92,6 +92,12 @@ public final class Caster {
      * stays in its real place instead of pushing the whole video behind the audio. A short queue keeps
      * ffmpeg from building up delay.
      */
+    /** Shifts the sound by the panel's sync setting (positive: later), to match the picture's capture delay. */
+    private static List<String> audioDelay() {
+        int ms = ClientConfig.castAudioDelay();
+        return ms == 0 ? List.of() : List.of("-itsoffset", String.format(java.util.Locale.ROOT, "%.3f", ms / 1000.0));
+    }
+
     private static List<String> rawInput(int w, int h, int fps) {
         return List.of("-f", "rawvideo", "-pix_fmt", "yuv420p", "-video_size", w + "x" + h, "-framerate", "" + fps,
             "-use_wallclock_as_timestamps", "1", "-thread_queue_size", "4", "-i", "pipe:0");
@@ -189,7 +195,10 @@ public final class Caster {
             } else if (windows()) {
                 ff.addAll(windowsVideo(source, FPS));
                 sound = !app.equals(AudioRoute.NONE);
-                if (sound) ff.addAll(List.of("-f", "wasapi", "-thread_queue_size", "1024", "-i", "default"));
+                if (sound) {
+                    ff.addAll(audioDelay());
+                    ff.addAll(List.of("-f", "wasapi", "-thread_queue_size", "1024", "-i", "default"));
+                }
             } else {
                 if (!gstreamerHasPipeWire()) { finish(tr("needs_gst")); return; }
                 portal = new Portal();
@@ -200,7 +209,10 @@ public final class Caster {
                 ff.addAll(rawInput(W, H, FPS));
                 audio = new AudioRoute(app, !ClientConfig.hearProjector());
                 sound = audio.source != null;
-                if (sound) ff.addAll(List.of("-f", "pulse", "-use_wallclock_as_timestamps", "1", "-thread_queue_size", "1024", "-i", audio.source));
+                if (sound) {
+                    ff.addAll(audioDelay());
+                    ff.addAll(List.of("-f", "pulse", "-use_wallclock_as_timestamps", "1", "-thread_queue_size", "1024", "-i", audio.source));
+                }
             }
             ff.addAll(List.of("-map", "0:v"));
             if (sound) ff.addAll(List.of("-map", "1:a"));
@@ -276,15 +288,34 @@ public final class Caster {
                     if (!sentInit) { init.writeBytes(head.toByteArray()); init.writeBytes(body); }
                     continue;
                 }
-                if (!sentInit) { out.add(new Element(Cast.INIT, init.toByteArray())); sentInit = true; }
+                if (!sentInit) { out.add(new Element(Cast.INIT, init.toByteArray())); sentInit = true; record(init.toByteArray(), true); }
                 ByteArrayOutputStream c = new ByteArrayOutputStream(head.size() + body.length);
                 c.writeBytes(head.toByteArray());
                 c.writeBytes(body);
                 out.add(new Element(startsWithKeyframe(body) ? Cast.JOIN : Cast.CLUSTER, c.toByteArray()));
+                record(c.toByteArray(), false);
             }
         } catch (EOFException end) {
             // ffmpeg stopped
         }
+    }
+
+    /** Keeps the start of the stream (up to 40 MB) in logs/chorus-cast-sample.webm, to check what viewers get. */
+    private static java.io.OutputStream sample;
+    private static long sampled;
+
+    private static void record(byte[] b, boolean first) {
+        try {
+            if (first) {
+                if (sample != null) sample.close();
+                sample = Files.newOutputStream(FabricLoader.getInstance().getGameDir().resolve("logs/chorus-cast-sample.webm"));
+                sampled = 0;
+            }
+            if (sample == null || sampled > 40L * 1024 * 1024) return;
+            sample.write(b);
+            sampled += b.length;
+            sample.flush();
+        } catch (IOException ignored) { }
     }
 
     /** Whether the cluster's first video frame (track 1) is a keyframe. */
