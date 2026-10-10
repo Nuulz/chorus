@@ -29,5 +29,20 @@
   "chorus.settings.volume": "Volume",
   "chorus.settings.screens": "Live screens",
   "chorus.settings.radius": "Range (blocks)",
-  "chorus.settings.quality": "Quality"
+  "chorus.settings.quality": "Quality",
+  "chorus.cast": "Share my screen",
+  "chorus.cast.audio": "Sound",
+  "chorus.cast.audio_none": "No sound",
+  "chorus.cast.audio_all": "Whole computer",
+  "chorus.cast.start": "Choose a window and share",
+  "chorus.cast.stop": "Stop sharing",
+  "chorus.cast.hint": "Only the app you choose is heard; your game and calls stay out.",
+  "chorus.cast.starting": "Starting…",
+  "chorus.cast.pick": "Choose the window in your desktop's picker",
+  "chorus.cast.cancelled": "Cancelled",
+  "chorus.cast.live": "Sharing",
+  "chorus.cast.ended": "Sharing ended",
+  "chorus.cast.stopped": "Stopped sharing",
+  "chorus.cast.failed": "Couldn't share:",
+  "chorus.cast.linux_only": "For now, sharing works on Linux only."
 }

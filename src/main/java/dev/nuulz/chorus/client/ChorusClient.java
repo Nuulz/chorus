@@ -1,6 +1,7 @@
 package dev.nuulz.chorus.client;
 
 import dev.nuulz.chorus.Chorus;
+import dev.nuulz.chorus.Cast;
 import dev.nuulz.chorus.Media;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import dev.nuulz.chorus.ScreenBlock;
@@ -21,13 +22,16 @@ public final class ChorusClient implements ClientModInitializer {
         ScreenBlockEntity.clientLoaded = Screens::loaded;
         ScreenBlockEntity.clientUnloaded = Screens::unloaded;
         ScreenBlock.openControls = be -> Minecraft.getInstance().gui.setScreen(new ControlScreen(be));
-        ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> MediaCache.stop());
-        ClientTickEvents.END_CLIENT_TICK.register(mc -> { Screens.tick(); Uploader.tick(); MediaCache.tick(); });
+        ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> { Caster.stop(); MediaCache.stop(); });
+        ClientTickEvents.END_CLIENT_TICK.register(mc -> { Screens.tick(); Uploader.tick(); MediaCache.tick(); Caster.tick(); });
         ClientPlayNetworking.registerGlobalReceiver(Media.Ack.TYPE, (p, ctx) -> Uploader.ack(p));
         ClientPlayNetworking.registerGlobalReceiver(Media.Chunk.TYPE, (p, ctx) -> MediaCache.received(p));
+        ClientPlayNetworking.registerGlobalReceiver(Cast.Bytes.TYPE, (p, ctx) -> LiveCache.received(p));
         ClientPlayConnectionEvents.DISCONNECT.register((h, mc) -> mc.execute(() -> {
             Screens.closeAll();
             Uploader.reset();
+            Caster.stop();
+            LiveCache.reset();
             MediaCache.reset();
         }));
     }

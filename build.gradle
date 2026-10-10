@@ -16,6 +16,11 @@ dependencies {
     implementation "net.fabricmc.fabric-api:fabric-api:0.161.0+26.2"
     implementation "com.github.Nuulz:pane:v0.2.1"
     include "com.github.Nuulz:pane:v0.2.1"
+    // D-Bus, for the screen-cast portal on Linux (Wayland window picker); pure Java over JDK unix sockets
+    implementation "com.github.hypfvieh:dbus-java-core:5.1.1"
+    implementation "com.github.hypfvieh:dbus-java-transport-native-unixsocket:5.1.1"
+    include "com.github.hypfvieh:dbus-java-core:5.1.1"
+    include "com.github.hypfvieh:dbus-java-transport-native-unixsocket:5.1.1"
     // Mod Menu's Config button; compile-only, Chorus works without it
     compileOnly "com.terraformersmc:modmenu:20.0.3"
 }

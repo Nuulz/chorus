@@ -1,5 +1,6 @@
 package dev.nuulz.chorus.client;
 
+import dev.nuulz.chorus.Cast;
 import dev.nuulz.chorus.Media;
 import dev.nuulz.chorus.ScreenBlockEntity;
 import dev.nuulz.pane.Pane;
@@ -62,7 +63,7 @@ final class Screens {
         double radius = ClientConfig.radius;
 
         List<ScreenBlockEntity> wanted = loaded.stream()
-            .filter(be -> browsingNow.contains(be) || !be.url.isEmpty() && (Media.isMedia(be.url) || ClientConfig.urls.allows(be.url)))
+            .filter(be -> browsingNow.contains(be) || !be.url.isEmpty() && (Media.isMedia(be.url) || Cast.isCast(be.url) || ClientConfig.urls.allows(be.url)))
             .filter(be -> Vec3.atCenterOf(be.getBlockPos()).distanceTo(eye) < radius + (live.containsKey(be) ? 8 : 0))
             .sorted(Comparator.comparingDouble(be -> browsingNow.contains(be) ? -1 : Vec3.atCenterOf(be.getBlockPos()).distanceTo(eye)))
             .limit(ClientConfig.maxActive).toList();
@@ -74,14 +75,19 @@ final class Screens {
         long time = mc.level.getGameTime();
         for (ScreenBlockEntity be : wanted) {
             Live l = live.computeIfAbsent(be, k -> new Live());
-            String target = be.url.isEmpty() ? "about:blank" : Media.isMedia(be.url) ? MediaCache.url(Media.name(be.url)) : be.url;
+            String target = be.url.isEmpty() ? "about:blank"
+                : Media.isMedia(be.url) ? MediaCache.url(Media.name(be.url))
+                : Cast.isCast(be.url) ? LiveCache.url(Cast.caster(be.url))
+                : be.url;
             if (l.view == null) {
                 l.view = Pane.open(target);
                 l.view.resize(ClientConfig.width, ClientConfig.height);
                 l.url = be.url;
             } else if (!l.url.equals(be.url)) {
+                String old = l.url;
                 l.view.load(target);
                 l.url = be.url;
+                if (Cast.isCast(old) && live.values().stream().noneMatch(o -> o.url.equals(old))) LiveCache.stop(Cast.caster(old));
             }
             if (l.view.width() != ClientConfig.width || l.view.height() != ClientConfig.height)
                 l.view.resize(ClientConfig.width, ClientConfig.height);
@@ -97,6 +103,7 @@ final class Screens {
             double d = Vec3.atCenterOf(be.getBlockPos()).distanceTo(eye);
             double fall = Math.max(0, 1 - d / radius);
             double vol = fall * fall * ClientConfig.volume / 100.0;
+            if (Cast.isCast(be.url) && Cast.caster(be.url).equals(mc.player.getUUID())) vol = 0; // you hear the app itself
             l.view.executeJavaScript(sync(be.positionMs(time) / 1000.0, be.playing, vol, fresh ? 0.4 : 1.5), "", 0);
         }
     }
@@ -133,6 +140,7 @@ final class Screens {
     private static void close(ScreenBlockEntity be) {
         Live l = live.remove(be);
         if (l == null) return;
+        if (Cast.isCast(l.url) && live.values().stream().noneMatch(o -> o.url.equals(l.url))) LiveCache.stop(Cast.caster(l.url));
         if (l.view != null) l.view.close();
         l.texture.release();
     }

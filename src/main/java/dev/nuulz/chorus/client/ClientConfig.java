@@ -21,6 +21,7 @@ public final class ClientConfig {
         d.setProperty("volume_percent", "100");
         d.setProperty("allowed_hosts", UrlPolicy.DEFAULT_HOSTS);
         d.setProperty("allow_any_link", "false");
+        d.setProperty("cast_restore_token", "");
         p = new Props(FabricLoader.getInstance().getConfigDir().resolve("chorus-client.properties"), d);
         maxActive = p.num("max_active_screens", 0, 4);
         width = p.num("width", 256, 1280);
@@ -35,6 +36,8 @@ public final class ClientConfig {
         p.set(key, value);
         load();
     }
+
+    static String castToken() { return p.str("cast_restore_token"); }
 
     private ClientConfig() {}
 }

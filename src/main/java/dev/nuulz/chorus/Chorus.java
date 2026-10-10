@@ -92,7 +92,20 @@ public final class Chorus implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(Media.Piece.TYPE, (p, ctx) -> MediaStore.piece(ctx.player(), p));
         ServerPlayNetworking.registerGlobalReceiver(Media.Fetch.TYPE, (p, ctx) -> MediaStore.fetch(ctx.player(), p));
         ServerTickEvents.END_SERVER_TICK.register(MediaStore::tick);
-        ServerPlayConnectionEvents.DISCONNECT.register((h, server) -> MediaStore.abort(h.getPlayer()));
+
+        PayloadTypeRegistry.serverboundPlay().register(Cast.Begin.TYPE, Cast.Begin.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(Cast.Piece.TYPE, Cast.Piece.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(Cast.End.TYPE, Cast.End.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(Cast.Watch.TYPE, Cast.Watch.CODEC);
+        PayloadTypeRegistry.clientboundPlay().registerLarge(Cast.Bytes.TYPE, Cast.Bytes.CODEC, Cast.RELAY_PIECE + 1024);
+        ServerPlayNetworking.registerGlobalReceiver(Cast.Begin.TYPE, (p, ctx) -> CastRelay.begin(ctx.player(), p));
+        ServerPlayNetworking.registerGlobalReceiver(Cast.Piece.TYPE, (p, ctx) -> CastRelay.piece(ctx.player(), p));
+        ServerPlayNetworking.registerGlobalReceiver(Cast.End.TYPE, (p, ctx) -> CastRelay.end(ctx.player()));
+        ServerPlayNetworking.registerGlobalReceiver(Cast.Watch.TYPE, (p, ctx) -> CastRelay.watch(ctx.player(), p));
+        ServerPlayConnectionEvents.DISCONNECT.register((h, server) -> {
+            MediaStore.abort(h.getPlayer());
+            CastRelay.left(h.getPlayer());
+        });
     }
 
     /** Who may drive a screen: whoever placed it, the world's owner (a jukz host) and operators. */

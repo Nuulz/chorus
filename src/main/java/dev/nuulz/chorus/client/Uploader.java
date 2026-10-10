@@ -131,15 +131,16 @@ public final class Uploader {
         Files.createDirectories(WORK);
         Path out = WORK.resolve("converting.webm");
         double duration = duration(src);
-        Encoder enc = encoder();
+        Encoders.Encoder enc = Encoders.best();
         List<String> cmd = new java.util.ArrayList<>(List.of(FFmpeg.ffmpeg(), "-y", "-v", "error", "-progress", "pipe:1"));
-        cmd.addAll(enc.before);
+        if (enc != Encoders.CPU && enc.before().isEmpty()) cmd.addAll(List.of("-hwaccel", "auto"));
+        cmd.addAll(enc.before());
         cmd.addAll(List.of("-i", src.toString(), "-map", "0:v:0", "-map", "0:a:0?", "-vf", enc.filter("scale='min(1280,iw)':-2")));
-        cmd.addAll(enc.args);
+        cmd.addAll(enc.file());
         cmd.addAll(List.of("-c:a", "libopus", "-b:a", "128k", out.toString()));
-        status = tr("converting") + " (" + enc.label + ")";
+        status = tr("converting") + " (" + enc.label() + ")";
         fraction = 0;
-        Chorus.LOG.info("chorus: converting with {}", enc.label);
+        Chorus.LOG.info("chorus: converting with {}", enc.label());
         Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
         try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
             for (String l; (l = r.readLine()) != null; ) {
@@ -149,7 +150,7 @@ public final class Uploader {
             }
         }
         if (p.waitFor() != 0) {
-            if (enc != CPU) { broken.add(enc.label); return convert(src); } // GPU said yes to a test frame but not to this video
+            if (enc != Encoders.CPU) { Encoders.markBroken(enc); return convert(src); } // GPU said yes to a test frame but not to this video
             finish(tr("convert_failed"));
             return null;
         }
@@ -165,41 +166,6 @@ public final class Uploader {
         } catch (Exception e) {
             return -1;
         }
-    }
-
-    /** How to encode AV1: hardware when this machine has it, else SVT-AV1 on the CPU. */
-    private record Encoder(String label, List<String> before, String hwFilter, List<String> args) {
-        String filter(String scale) { return hwFilter.isEmpty() ? scale : scale + "," + hwFilter; }
-    }
-
-    private static final Encoder CPU = new Encoder("CPU", List.of(), "",
-        List.of("-c:v", "libsvtav1", "-preset", "10", "-crf", "35"));
-    private static final List<Encoder> GPUS = List.of(
-        new Encoder("NVIDIA", List.of("-hwaccel", "auto"), "", List.of("-c:v", "av1_nvenc", "-preset", "p5", "-cq", "32")),
-        new Encoder("Intel", List.of("-hwaccel", "auto"), "", List.of("-c:v", "av1_qsv", "-global_quality", "30")),
-        new Encoder("AMD", List.of("-hwaccel", "auto"), "", List.of("-c:v", "av1_amf", "-quality", "balanced", "-rc", "cqp", "-qp_i", "30", "-qp_p", "32")),
-        new Encoder("VAAPI", List.of("-vaapi_device", "/dev/dri/renderD128"), "format=nv12,hwupload", List.of("-c:v", "av1_vaapi", "-b:v", "4M")));
-    private static final java.util.Set<String> broken = new java.util.HashSet<>();
-    private static Encoder chosen;
-
-    /** The first hardware encoder that really encodes a test frame here (listed isn't enough: no GPU, old driver...). */
-    private static Encoder encoder() {
-        if (chosen != null && !broken.contains(chosen.label)) return chosen;
-        chosen = CPU;
-        for (Encoder e : GPUS) {
-            if (broken.contains(e.label)) continue;
-            List<String> cmd = new java.util.ArrayList<>(List.of(FFmpeg.ffmpeg(), "-v", "error"));
-            cmd.addAll(e.before.stream().filter(a -> !a.equals("-hwaccel") && !a.equals("auto")).toList());
-            cmd.addAll(List.of("-f", "lavfi", "-i", "testsrc2=s=640x360:d=0.2", "-vf", e.filter("scale=640:360")));
-            cmd.addAll(e.args);
-            cmd.addAll(List.of("-f", "null", "-"));
-            try {
-                Process t = new ProcessBuilder(cmd).redirectErrorStream(true).start();
-                t.getInputStream().readAllBytes();
-                if (t.waitFor() == 0) { chosen = e; break; }
-            } catch (Exception ignored) { }
-        }
-        return chosen;
     }
 
     /** Sends while fewer than a few acks are outstanding; called every client tick. */

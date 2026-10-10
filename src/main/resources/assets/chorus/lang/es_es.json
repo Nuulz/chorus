@@ -29,5 +29,20 @@
   "chorus.settings.volume": "Volumen",
   "chorus.settings.screens": "Pantallas activas",
   "chorus.settings.radius": "Alcance (bloques)",
-  "chorus.settings.quality": "Calidad"
+  "chorus.settings.quality": "Calidad",
+  "chorus.cast": "Transmitir mi pantalla",
+  "chorus.cast.audio": "Sonido",
+  "chorus.cast.audio_none": "Sin sonido",
+  "chorus.cast.audio_all": "Todo el PC",
+  "chorus.cast.start": "Elegir ventana y transmitir",
+  "chorus.cast.stop": "Dejar de transmitir",
+  "chorus.cast.hint": "Solo se escucha la app elegida; tu juego y tus llamadas quedan fuera.",
+  "chorus.cast.starting": "Iniciando…",
+  "chorus.cast.pick": "Elige la ventana en el selector de tu escritorio",
+  "chorus.cast.cancelled": "Cancelado",
+  "chorus.cast.live": "Transmitiendo",
+  "chorus.cast.ended": "La transmisión terminó",
+  "chorus.cast.stopped": "Dejaste de transmitir",
+  "chorus.cast.failed": "No se pudo transmitir:",
+  "chorus.cast.linux_only": "Por ahora la transmisión funciona solo en Linux."
 }

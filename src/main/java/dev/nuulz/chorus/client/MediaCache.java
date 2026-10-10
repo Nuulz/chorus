@@ -174,11 +174,21 @@ final class MediaCache {
         return entries.get(e.name) == e && !e.missing;
     }
 
+    /** The local address for [path] under this session's secret prefix, registering [handler] once. */
+    static synchronized String local(String path, com.sun.net.httpserver.HttpHandler handler) {
+        HttpServer h = server();
+        String ctx = "/" + TOKEN + "/" + path + "/";
+        if (contexts.add(ctx)) h.createContext(ctx, handler);
+        return "http://127.0.0.1:" + h.getAddress().getPort() + ctx;
+    }
+
+    private static final java.util.Set<String> contexts = new java.util.HashSet<>();
+
     private static HttpServer server() {
         if (http != null) return http;
         try {
             http = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 16);
-            http.setExecutor(Executors.newFixedThreadPool(4, r -> { Thread t = new Thread(r, "chorus-media"); t.setDaemon(true); return t; }));
+            http.setExecutor(Executors.newCachedThreadPool( r -> { Thread t = new Thread(r, "chorus-media"); t.setDaemon(true); return t; }));
             http.createContext("/" + TOKEN + "/", MediaCache::serve);
             http.start();
         } catch (IOException e) {
@@ -242,6 +252,7 @@ final class MediaCache {
     static synchronized void stop() {
         if (http != null) http.stop(0);
         http = null;
+        contexts.clear();
     }
 
     private MediaCache() {}
