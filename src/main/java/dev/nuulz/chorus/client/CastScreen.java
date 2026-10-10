@@ -16,6 +16,9 @@ public final class CastScreen extends Screen {
     private final ScreenBlockEntity be;
     private String app = AudioRoute.NONE;
     private String source = DESKTOP;
+    private int listVersion = -1;
+    private static final int ROW = 24;
+    private int top, bottom;
 
     public CastScreen(ScreenBlockEntity be) {
         super(Component.translatable("chorus.cast"));
@@ -24,20 +27,27 @@ public final class CastScreen extends Screen {
 
     @Override
     protected void init() {
-        int w = 280, x = (width - w) / 2, y = height / 2 - 40;
+        int w = 280, x = (width - w) / 2;
         if (!Caster.supported()) return;
         boolean idle = !Caster.running;
+        // One row per widget, stacked under the title and centered, so nothing overlaps
+        int rows = 1 + (Caster.windows() ? (idle ? 2 : 1) : 0) + (idle ? (Caster.windows() ? 3 : 4) : 0);
+        top = Math.max(24, (height - rows * ROW - 40) / 2 + 16);
+        int y = top;
         if (Caster.windows()) {
-            WindowList.refresh();
+            if (listVersion == -1) WindowList.refresh();
+            listVersion = WindowList.version();
             List<String> sources = new ArrayList<>(List.of(DESKTOP));
             for (String t : WindowList.titles()) sources.add(WINDOW + t);
             if (!sources.contains(source)) source = DESKTOP;
             if (idle) addRenderableWidget(CycleButton.<String>builder(s -> Component.literal(
                     s.equals(DESKTOP) ? Caster.tr("source_desktop") : s.substring(WINDOW.length())), source)
                 .withValues(sources)
-                .create(x, y - 28, w, 20, Component.translatable("chorus.cast.source"), (b, v) -> source = v));
-            addRenderableWidget(Button.builder(Component.translatable("chorus.cast.refresh"), b -> minecraft.gui.setScreen(new CastScreen(be)))
-                .bounds(x, y - 52, w, 20).build());
+                .create(x, y, w, 20, Component.translatable("chorus.cast.source"), (b, v) -> source = v));
+            if (idle) y += ROW;
+            addRenderableWidget(Button.builder(Component.translatable("chorus.cast.refresh"), b -> WindowList.refresh())
+                .bounds(x, y, w, 20).build());
+            y += ROW;
         }
         List<String> audio = new ArrayList<>(List.of(AudioRoute.NONE, AudioRoute.ALL));
         Map<String, String> apps = Caster.windows() ? Map.of() : AudioRoute.apps();
@@ -48,24 +58,31 @@ public final class CastScreen extends Screen {
                     id.equals(AudioRoute.NONE) ? Caster.tr("audio_none") : id.equals(AudioRoute.ALL) ? Caster.tr("audio_all") : apps.get(id)), app)
                 .withValues(audio)
                 .create(x, y, w, 20, Component.translatable("chorus.cast.audio"), (b, v) -> app = v));
+            y += ROW;
+            addRenderableWidget(CycleButton.<String>builder(id -> Component.literal(qualityLabel(id)), ClientConfig.castQuality())
+                .withValues(java.util.Arrays.stream(Caster.QUALITIES).map(Caster.Quality::id).toList())
+                .create(x, y, w, 20, Component.translatable("chorus.cast.quality"), (b, v) -> ClientConfig.set("cast_quality", v)));
+            y += ROW;
+            if (!Caster.windows()) {
+                addRenderableWidget(CycleButton.onOffBuilder(ClientConfig.hearProjector())
+                    .create(x, y, w, 20, Component.translatable("chorus.cast.hear_projector"), (b, on) -> ClientConfig.set("cast_hear_projector", on)));
+                y += ROW;
+            }
             List<Integer> delays = new ArrayList<>();
             for (int ms = 0; ms <= 1000; ms += 50) delays.add(ms);
             int current = ClientConfig.castAudioDelay();
             if (!delays.contains(current)) current = 0;
             addRenderableWidget(CycleButton.<Integer>builder(ms -> Component.translatable("chorus.cast.delay_value", (ms > 0 ? "+" : "") + ms), current)
                 .withValues(delays)
-                .create(x, y + 84, w, 20, Component.translatable("chorus.cast.delay"), (b, ms) -> ClientConfig.set("cast_audio_delay_ms", ms)));
-            if (!Caster.windows()) addRenderableWidget(CycleButton.onOffBuilder(ClientConfig.hearProjector())
-                .create(x, y + 56, w, 20, Component.translatable("chorus.cast.hear_projector"), (b, on) -> ClientConfig.set("cast_hear_projector", on)));
-            addRenderableWidget(CycleButton.<String>builder(id -> Component.literal(qualityLabel(id)), ClientConfig.castQuality())
-                .withValues(java.util.Arrays.stream(Caster.QUALITIES).map(Caster.Quality::id).toList())
-                .create(x, y + 28, w, 20, Component.translatable("chorus.cast.quality"), (b, v) -> ClientConfig.set("cast_quality", v)));
+                .create(x, y, w, 20, Component.translatable("chorus.cast.delay"), (b, ms) -> ClientConfig.set("cast_audio_delay_ms", ms)));
+            y += ROW;
         }
         addRenderableWidget(Button.builder(Component.translatable(Caster.running ? "chorus.cast.stop" : "chorus.cast.start"), b -> {
             if (Caster.running) Caster.stop();
             else Caster.start(be.getBlockPos(), app, source);
             minecraft.gui.setScreen(new net.minecraft.client.gui.screens.PauseScreen(true));
-        }).bounds(x, y + (Caster.running ? 0 : 112), w, 20).build());
+        }).bounds(x, y, w, 20).build());
+        bottom = y + ROW + 4;
     }
 
     static String qualityLabel(String id) {
@@ -83,14 +100,21 @@ public final class CastScreen extends Screen {
             g.centeredText(font, Component.translatable("chorus.cast.unsupported"), cx, y + 30, 0xFFFFAA55);
             return;
         }
-        g.centeredText(font, title, cx, y - 14, 0xFFFFFFFF);
+        g.centeredText(font, title, cx, top - 14, 0xFFFFFFFF);
         if (!Caster.running) {
             boolean projector = ClientConfig.hearProjector() && !Caster.windows();
             boolean oneApp = !app.equals(AudioRoute.NONE) && !app.equals(AudioRoute.ALL);
             String hint = !projector ? "chorus.cast.hint" : oneApp ? "chorus.cast.hint_projector" : "chorus.cast.hint_projector_app";
-            g.centeredText(font, Component.translatable(hint), cx, height / 2 + 104, projector && !oneApp ? 0xFFFFAA55 : 0xFFAAAAAA);
+            g.centeredText(font, Component.translatable(hint), cx, bottom, projector && !oneApp ? 0xFFFFAA55 : 0xFFAAAAAA);
         }
-        g.centeredText(font, Component.literal(Caster.status), cx, height / 2 + 118, 0xFF88CCFF);
+        g.centeredText(font, Component.literal(Caster.status), cx, bottom + 14, 0xFF88CCFF);
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        // The window list loads in the background: show it as soon as it's there
+        if (Caster.windows() && listVersion != -1 && listVersion != WindowList.version()) rebuildWidgets();
     }
 
     @Override public boolean isPauseScreen() { return false; }
