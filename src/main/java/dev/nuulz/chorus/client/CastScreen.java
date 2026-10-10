@@ -49,7 +49,7 @@ public final class CastScreen extends Screen {
                 .withValues(audio)
                 .create(x, y, w, 20, Component.translatable("chorus.cast.audio"), (b, v) -> app = v));
             List<Integer> delays = new ArrayList<>();
-            for (int ms = -500; ms <= 1000; ms += 50) delays.add(ms);
+            for (int ms = 0; ms <= 1000; ms += 50) delays.add(ms);
             int current = ClientConfig.castAudioDelay();
             if (!delays.contains(current)) current = 0;
             addRenderableWidget(CycleButton.<Integer>builder(ms -> Component.translatable("chorus.cast.delay_value", (ms > 0 ? "+" : "") + ms), current)

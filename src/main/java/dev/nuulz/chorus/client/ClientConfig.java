@@ -43,7 +43,7 @@ public final class ClientConfig {
     static String castToken() { return p.str("cast_restore_token"); }
     static String castQuality() { return p.str("cast_quality"); }
     static boolean hearProjector() { return p.flag("cast_hear_projector"); }
-    static int castAudioDelay() { return Math.clamp(p.num("cast_audio_delay_ms", -1000, 1000), -1000, 1000); }
+    static int castAudioDelay() { return Math.clamp(p.num("cast_audio_delay_ms", 0, 1000), 0, 1000); }
 
     private ClientConfig() {}
 }

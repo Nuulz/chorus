@@ -21,6 +21,7 @@ public class CastTest implements FabricClientGameTest {
             ctx.waitTicks(20);
             ctx.runOnClient(mc -> {
                 dev.nuulz.chorus.client.ClientConfig.set("cast_quality", System.getProperty("chorus.quality", "720"));
+                dev.nuulz.chorus.client.ClientConfig.set("cast_audio_delay_ms", Integer.getInteger("chorus.delay", 0));
                 if (Boolean.getBoolean("chorus.gsttest")) Caster.startGstTest(ScreenTest.POS);
                 else Caster.startTest(ScreenTest.POS);
             });

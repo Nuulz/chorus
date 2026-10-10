@@ -92,15 +92,12 @@ public final class Caster {
      * stays in its real place instead of pushing the whole video behind the audio. A short queue keeps
      * ffmpeg from building up delay.
      */
-    /** Shifts the sound by the panel's sync setting (positive: later), to match the picture's capture delay. */
-    private static List<String> audioDelay() {
-        int ms = ClientConfig.castAudioDelay();
-        return ms == 0 ? List.of() : List.of("-itsoffset", String.format(java.util.Locale.ROOT, "%.3f", ms / 1000.0));
-    }
+    // The sync setting only delays the sound (the picture is the one that comes late), with adelay after
+    // reading. Shifting an input (-itsoffset) or delaying the video makes ffmpeg hold the video back: 60 → 10 fps.
 
     private static List<String> rawInput(int w, int h, int fps) {
         return List.of("-f", "rawvideo", "-pix_fmt", "yuv420p", "-video_size", w + "x" + h, "-framerate", "" + fps,
-            "-use_wallclock_as_timestamps", "1", "-thread_queue_size", "4", "-i", "pipe:0");
+            "-use_wallclock_as_timestamps", "1", "-thread_queue_size", "32", "-i", "pipe:0");
     }
 
     /** Raw I420 pictures of the given size from a GStreamer source, as fast as they come (no fixed rate). */
@@ -182,6 +179,8 @@ public final class Caster {
                 // a slow, damage-like source (2 pictures a second) through the same pump as a real window
                 video = gstreamer(List.of("videotestsrc", "is-live=true", "pattern=ball", "!", "video/x-raw,framerate=2/1"), W, H);
                 ff.addAll(rawInput(W, H, FPS));
+                ff.addAll(List.of("-f", "pulse", "-use_wallclock_as_timestamps", "1", "-thread_queue_size", "1024", "-i",
+                    AudioRoute.run("pactl", "get-default-sink").trim() + ".monitor"));
                 app = AudioRoute.NONE;
                 test = false;
             }
@@ -191,13 +190,12 @@ public final class Caster {
                     "-re", "-f", "lavfi", "-i", "sine=frequency=330"));
                 sound = true;
             } else if (video != null) {
-                sound = false;
+                sound = true;
             } else if (windows()) {
                 ff.addAll(windowsVideo(source, FPS));
                 sound = !app.equals(AudioRoute.NONE);
                 if (sound) {
-                    ff.addAll(audioDelay());
-                    ff.addAll(List.of("-f", "wasapi", "-thread_queue_size", "1024", "-i", "default"));
+                        ff.addAll(List.of("-f", "wasapi", "-thread_queue_size", "1024", "-i", "default"));
                 }
             } else {
                 if (!gstreamerHasPipeWire()) { finish(tr("needs_gst")); return; }
@@ -210,14 +208,18 @@ public final class Caster {
                 audio = new AudioRoute(app, !ClientConfig.hearProjector());
                 sound = audio.source != null;
                 if (sound) {
-                    ff.addAll(audioDelay());
-                    ff.addAll(List.of("-f", "pulse", "-use_wallclock_as_timestamps", "1", "-thread_queue_size", "1024", "-i", audio.source));
+                        ff.addAll(List.of("-f", "pulse", "-use_wallclock_as_timestamps", "1", "-thread_queue_size", "1024", "-i", audio.source));
                 }
             }
             ff.addAll(List.of("-map", "0:v"));
             if (sound) ff.addAll(List.of("-map", "1:a"));
-            if (windows()) ff.addAll(List.of("-vf", "scale=-2:" + H + ",fps=" + FPS + ",format=" + (enc.hw().isEmpty() ? "yuv420p" : "nv12")));
-            else if (!enc.hw().isEmpty()) ff.addAll(List.of("-vf", enc.hw()));
+            List<String> vf = new ArrayList<>();
+            int delay = sound ? ClientConfig.castAudioDelay() : 0;
+            if (windows()) vf.add("scale=-2:" + H + ",fps=" + FPS + ",format=" + (enc.hw().isEmpty() ? "yuv420p" : "nv12"));
+            else if (!enc.hw().isEmpty()) vf.add(enc.hw());
+            if (!vf.isEmpty()) ff.addAll(List.of("-vf", String.join(",", vf)));
+            // live sound has small timestamp jumps; aresample fills them so the audio never has holes
+            if (sound) ff.addAll(List.of("-af", (delay > 0 ? "adelay=" + delay + ":all=1," : "") + "aresample=async=1000:first_pts=0"));
             ff.addAll(enc.live().apply(q.kbps()));
             ff.addAll(List.of("-g", "" + FPS * 2));
             if (enc.hw().isEmpty()) ff.addAll(List.of("-pix_fmt", "yuv420p"));
