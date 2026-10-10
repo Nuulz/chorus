@@ -47,6 +47,9 @@ public final class Caster {
 
     private static volatile boolean stopping;
     private static Portal portal;
+    private static Path progress;
+    private static long startedAt, sentBytes;
+    private static long frames = -1;
     private static AudioRoute audio;
     private static final List<Process> processes = new ArrayList<>();
     private static final ConcurrentLinkedQueue<Element> out = new ConcurrentLinkedQueue<>();
@@ -136,6 +139,8 @@ public final class Caster {
             ff.addAll(List.of("-g", "" + FPS * 2));
             if (enc.hw().isEmpty()) ff.addAll(List.of("-pix_fmt", "yuv420p"));
             if (sound) ff.addAll(List.of("-c:a", "libopus", "-b:a", "128k"));
+            progress = FabricLoader.getInstance().getGameDir().resolve("logs/chorus-cast-progress.txt");
+            ff.addAll(List.of("-progress", progress.toString(), "-stats_period", "2"));
             ff.addAll(List.of("-f", "webm", "-live", "1", "-cluster_time_limit", "1000", "pipe:1"));
 
             Path log = FabricLoader.getInstance().getGameDir().resolve("logs/chorus-cast.log");
@@ -149,6 +154,7 @@ public final class Caster {
                 ps = List.of(encode.start());
             }
             synchronized (Caster.class) { processes.addAll(ps); }
+            startedAt = System.currentTimeMillis();
             if (video != null) {
                 Thread.sleep(1500);
                 if (!ps.get(0).isAlive()) {
@@ -262,17 +268,31 @@ public final class Caster {
     /** Every client tick: hand finished elements to the server, and keep the audio route following. */
     static void tick() {
         if (!running) return;
+        watchFrames();
         if (audio != null && ++ticks % 20 == 0) audio.follow();
         for (Element e; (e = out.poll()) != null; ) {
             if (!begun && e.kind == Cast.INIT) { ClientPlayNetworking.send(new Cast.Begin(pos)); begun = true; }
             for (int at = 0; at < e.data.length; at += Media.UPLOAD_PIECE) {
                 int n = Math.min(Media.UPLOAD_PIECE, e.data.length - at);
                 ClientPlayNetworking.send(new Cast.Piece(e.kind, at + n >= e.data.length, java.util.Arrays.copyOfRange(e.data, at, at + n)));
+                sentBytes += n;
             }
         }
     }
 
     public static void stopForTest() { stop(); }
+
+    /** Reads ffmpeg's progress file (every 2 s) and says so when no picture is arriving. */
+    private static void watchFrames() {
+        if (progress == null || System.currentTimeMillis() % 2000 > 60) return;
+        long now = 0;
+        try {
+            for (String l : Files.readAllLines(progress)) if (l.startsWith("frame=")) now = Long.parseLong(l.substring(6).trim());
+        } catch (Exception ignored) { }
+        frames = now;
+        if (frames == 0 && System.currentTimeMillis() - startedAt > 4000) status = tr("no_frames");
+        else if (frames > 0) status = tr("live") + " · " + frames + " " + tr("frames") + " · " + (sentBytes / 1024) + " KB";
+    }
 
     static void stop() {
         if (!running) return;
