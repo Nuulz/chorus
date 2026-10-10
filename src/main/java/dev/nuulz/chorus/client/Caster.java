@@ -81,6 +81,52 @@ public final class Caster {
     /** For tests: a generated picture and tone instead of a window. */
     public static void startTest(BlockPos target) { start(target, "test", "test"); }
 
+    /** Raw I420 pictures of the given size from a GStreamer source, as fast as they come (no fixed rate). */
+    private static ProcessBuilder gstreamer(List<String> source, int w, int h) {
+        List<String> cmd = new ArrayList<>(List.of("gst-launch-1.0", "-q"));
+        cmd.addAll(source);
+        cmd.addAll(List.of("!", "queue", "leaky=downstream", "max-size-buffers=2", "!", "videoconvert", "!",
+            "videoscale", "add-borders=true", "!", "video/x-raw,format=I420,width=" + w + ",height=" + h, "!", "fdsink", "fd=1"));
+        return new ProcessBuilder(cmd);
+    }
+
+    /**
+     * Screen capture only sends a picture when something changed, and a slow window sends few. ffmpeg
+     * needs a steady rate, so one thread keeps the newest picture and another hands it to ffmpeg [fps]
+     * times a second, repeating it while nothing new comes.
+     */
+    private static void pump(InputStream from, java.io.OutputStream to, int frameBytes, int fps) {
+        byte[][] latest = {null};
+        Thread reader = new Thread(() -> {
+            try (DataInputStream in = new DataInputStream(from)) {
+                while (true) {
+                    byte[] f = new byte[frameBytes];
+                    in.readFully(f);
+                    synchronized (latest) { latest[0] = f; }
+                    grabbed++;
+                }
+            } catch (IOException end) { }
+        }, "chorus-cast-read");
+        Thread writer = new Thread(() -> {
+            long period = 1_000_000_000L / fps, next = System.nanoTime();
+            try (to) {
+                while (running && !stopping) {
+                    byte[] f;
+                    synchronized (latest) { f = latest[0]; }
+                    if (f != null) to.write(f);
+                    next += period;
+                    long wait = next - System.nanoTime();
+                    if (wait > 0) Thread.sleep(wait / 1_000_000, (int) (wait % 1_000_000));
+                    else next = System.nanoTime();
+                }
+            } catch (Exception end) { }
+        }, "chorus-cast-write");
+        reader.setDaemon(true); writer.setDaemon(true);
+        reader.start(); writer.start();
+    }
+
+    private static volatile long grabbed;
+
     private static boolean gstreamerHasPipeWire() {
         try {
             return new ProcessBuilder("gst-inspect-1.0", "pipewiresrc").redirectErrorStream(true).start()
@@ -98,7 +144,10 @@ public final class Caster {
         return "";
     }
 
+    public static void startGstTest(BlockPos target) { start(target, "gsttest", "test"); }
+
     private static void run(String app, String source) {
+        grabbed = 0;
         try {
             Encoders.Encoder enc = Encoders.best();
             Quality q = quality();
@@ -107,11 +156,21 @@ public final class Caster {
             ff.addAll(enc.before());
             ProcessBuilder video = null;
             boolean test = app.equals("test");
+            if (app.equals("gsttest")) {
+                // a slow, damage-like source (2 pictures a second) through the same pump as a real window
+                video = gstreamer(List.of("videotestsrc", "is-live=true", "pattern=ball", "!", "video/x-raw,framerate=2/1"), W, H);
+                ff.addAll(List.of("-f", "rawvideo", "-pix_fmt", "yuv420p", "-video_size", W + "x" + H, "-framerate", "" + FPS,
+                    "-thread_queue_size", "64", "-i", "pipe:0"));
+                app = AudioRoute.NONE;
+                test = false;
+            }
             boolean sound;
             if (test) {
                 ff.addAll(List.of("-re", "-f", "lavfi", "-i", "testsrc2=s=" + W + "x" + H + ":r=" + FPS,
                     "-re", "-f", "lavfi", "-i", "sine=frequency=330"));
                 sound = true;
+            } else if (video != null) {
+                sound = false;
             } else if (windows()) {
                 ff.addAll(windowsVideo(source, FPS));
                 sound = !app.equals(AudioRoute.NONE);
@@ -122,9 +181,7 @@ public final class Caster {
                 status = tr("pick");
                 if (!portal.pick(ClientConfig.castToken())) { finish(tr("cancelled")); return; }
                 if (portal.restoreToken != null) ClientConfig.set("cast_restore_token", portal.restoreToken);
-                video = new ProcessBuilder("gst-launch-1.0", "-q", "pipewiresrc", "path=" + portal.node, "do-timestamp=true",
-                    "keepalive-time=1000", "!", "videoconvert", "!", "videoscale", "add-borders=true", "!", "videorate", "!",
-                    "video/x-raw,format=I420,width=" + W + ",height=" + H + ",framerate=" + FPS + "/1", "!", "fdsink", "fd=1");
+                video = gstreamer(List.of("pipewiresrc", "path=" + portal.node, "always-copy=true"), W, H);
                 ff.addAll(List.of("-f", "rawvideo", "-pix_fmt", "yuv420p", "-video_size", W + "x" + H, "-framerate", "" + FPS,
                     "-thread_queue_size", "64", "-i", "pipe:0"));
                 audio = new AudioRoute(app);
@@ -149,7 +206,9 @@ public final class Caster {
             List<Process> ps;
             if (video != null) {
                 video.redirectError(ProcessBuilder.Redirect.appendTo(log.toFile()));
-                ps = ProcessBuilder.startPipeline(List.of(video, encode));
+                Process grab = video.start(), enc2 = encode.start();
+                ps = List.of(grab, enc2);
+                pump(grab.getInputStream(), enc2.getOutputStream(), W * H * 3 / 2, FPS);
             } else {
                 ps = List.of(encode.start());
             }

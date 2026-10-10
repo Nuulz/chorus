@@ -53,5 +53,6 @@
   "chorus.cast.needs_gst": "Install the PipeWire plugin for GStreamer: sudo pacman -S gst-plugin-pipewire",
   "chorus.cast.no_frames": "No picture from that window yet. Check the screen capture in your desktop.",
   "chorus.cast.frames": "frames",
-  "chorus.size": "Size: %s blocks wide"
+  "chorus.size": "Size: %s blocks wide",
+  "chorus.cast.captured": "captured"
 }
