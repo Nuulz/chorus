@@ -28,6 +28,10 @@ public class CastTest implements FabricClientGameTest {
             sv.runOnServer(s -> System.out.println("chorus-test cast url: " + ((ScreenBlockEntity) s.overworld().getBlockEntity(ScreenTest.POS)).url));
             ctx.takeScreenshot(TestScreenshotOptions.of("cast_1").disableCounterPrefix().withSize(1280, 720).withDestinationDir(out));
             ctx.waitTicks(20 * 4);
+            ctx.runOnClient(mc -> mc.gui.setScreen(new net.minecraft.client.gui.screens.PauseScreen(true)));
+            ctx.waitTicks(10);
+            ctx.takeScreenshot(TestScreenshotOptions.of("cast_pause_menu").disableCounterPrefix().withSize(1280, 720).withDestinationDir(out));
+            ctx.runOnClient(mc -> mc.gui.setScreen(null));
             ctx.takeScreenshot(TestScreenshotOptions.of("cast_2_4s").disableCounterPrefix().withSize(1280, 720).withDestinationDir(out));
             ctx.runOnClient(mc -> dev.nuulz.chorus.client.Caster.stopForTest());
             ctx.waitTicks(20 * 2);

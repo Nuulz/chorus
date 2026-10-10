@@ -49,5 +49,6 @@
   "chorus.cast.source": "Mostrar",
   "chorus.cast.refresh": "Actualizar lista de ventanas",
   "chorus.cast.unsupported": "Transmitir no está disponible en este sistema todavía.",
-  "chorus.cast.source_desktop": "Pantalla completa"
+  "chorus.cast.source_desktop": "Pantalla completa",
+  "chorus.cast.needs_gst": "Instala el plugin de PipeWire para GStreamer: sudo pacman -S gst-plugin-pipewire"
 }

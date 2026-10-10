@@ -55,7 +55,7 @@ final class CastScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable(Caster.running ? "chorus.cast.stop" : "chorus.cast.start"), b -> {
             if (Caster.running) Caster.stop();
             else Caster.start(be.getBlockPos(), app, source);
-            onClose();
+            minecraft.gui.setScreen(new net.minecraft.client.gui.screens.PauseScreen(true));
         }).bounds(x, y + 56, w, 20).build());
     }
 

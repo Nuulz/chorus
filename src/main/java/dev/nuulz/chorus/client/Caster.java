@@ -8,6 +8,7 @@ import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,6 +78,23 @@ public final class Caster {
     /** For tests: a generated picture and tone instead of a window. */
     public static void startTest(BlockPos target) { start(target, "test", "test"); }
 
+    private static boolean gstreamerHasPipeWire() {
+        try {
+            return new ProcessBuilder("gst-inspect-1.0", "pipewiresrc").redirectErrorStream(true).start()
+                .waitFor() == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static String lastLine(Path log) {
+        try {
+            List<String> lines = Files.readAllLines(log);
+            for (int i = lines.size() - 1; i >= 0; i--) if (!lines.get(i).isBlank()) return lines.get(i).trim();
+        } catch (IOException ignored) { }
+        return "";
+    }
+
     private static void run(String app, String source) {
         try {
             Encoders.Encoder enc = Encoders.best();
@@ -96,6 +114,7 @@ public final class Caster {
                 sound = !app.equals(AudioRoute.NONE);
                 if (sound) ff.addAll(List.of("-f", "wasapi", "-thread_queue_size", "1024", "-i", "default"));
             } else {
+                if (!gstreamerHasPipeWire()) { finish(tr("needs_gst")); return; }
                 portal = new Portal();
                 status = tr("pick");
                 if (!portal.pick(ClientConfig.castToken())) { finish(tr("cancelled")); return; }
@@ -130,6 +149,13 @@ public final class Caster {
                 ps = List.of(encode.start());
             }
             synchronized (Caster.class) { processes.addAll(ps); }
+            if (video != null) {
+                Thread.sleep(1500);
+                if (!ps.get(0).isAlive()) {
+                    finish(tr("failed") + " " + lastLine(log));
+                    return;
+                }
+            }
             status = tr("live") + " (" + enc.label() + ", " + q.height() + "p" + q.fps() + ")";
             Chorus.LOG.info("chorus: casting with {}", enc.label());
             split(ps.get(ps.size() - 1).getInputStream());
