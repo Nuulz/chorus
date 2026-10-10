@@ -16,7 +16,7 @@ public class SizeTest implements FabricClientGameTest {
             var sv = world.getServer();
             sv.runCommand("time set 13000");
             sv.runCommand("setblock 0 -60 0 chorus:screen[facing=south]");
-            sv.runCommand("tp @a 2.5 -60 10.5 180 -6");
+            sv.runCommand("tp @a 0.5 -60 13.5 180 -12");
             ctx.waitTicks(20);
             sv.runOnServer(s -> {
                 var be = (ScreenBlockEntity) s.overworld().getBlockEntity(ScreenTest.POS);
@@ -24,8 +24,14 @@ public class SizeTest implements FabricClientGameTest {
                 be.load("https://www.youtube.com/watch?v=aqz-KE-bpKQ");
             });
             ctx.waitFor(mc -> dev.nuulz.pane.Pane.running(), 20 * 60);
-            ctx.waitTicks(20 * 40);
+            ctx.waitTicks(20 * 25);
             ctx.takeScreenshot(TestScreenshotOptions.of("size_6").disableCounterPrefix().withSize(1280, 720).withDestinationDir(out));
+            sv.runCommand("tp @a 8.5 -59 8.5 135 5");
+            ctx.waitTicks(20);
+            ctx.takeScreenshot(TestScreenshotOptions.of("size_6_side").disableCounterPrefix().withSize(1280, 720).withDestinationDir(out));
+            sv.runCommand("tp @a 0.5 -59 -2.5 0 35");
+            ctx.waitTicks(20);
+            ctx.takeScreenshot(TestScreenshotOptions.of("block_close").disableCounterPrefix().withSize(1280, 720).withDestinationDir(out));
         }
     }
 }

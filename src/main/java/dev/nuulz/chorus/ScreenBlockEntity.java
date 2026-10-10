@@ -25,6 +25,7 @@ public class ScreenBlockEntity extends BlockEntity {
     public String owner = "";
     /** The picture's width in blocks; the height follows the 16:9 shape. The resolution doesn't change. */
     public int size = 3;
+    public static final int MAX_SIZE = 24;
     /** Bumped on every change, so clients know to resync instead of waiting for drift. */
     public int revision;
 
@@ -55,7 +56,7 @@ public class ScreenBlockEntity extends BlockEntity {
     }
 
     void setSize(int blocks) {
-        size = Math.clamp(blocks, 1, 8);
+        size = Math.clamp(blocks, 1, MAX_SIZE);
         changed();
     }
 
@@ -92,7 +93,7 @@ public class ScreenBlockEntity extends BlockEntity {
         baseMs = in.getLongOr("base_ms", 0);
         baseTick = in.getLongOr("base_tick", 0);
         owner = in.getStringOr("owner", "");
-        size = Math.clamp(in.getIntOr("size", 3), 1, 8);
+        size = Math.clamp(in.getIntOr("size", 3), 1, MAX_SIZE);
         revision = in.getIntOr("revision", 0);
     }
 

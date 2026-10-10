@@ -15,7 +15,7 @@ import net.minecraft.network.chat.Component;
 final class ControlScreen extends Screen {
     private final ScreenBlockEntity be;
     private EditBox url;
-    private static final int[] SIZES = {1, 2, 3, 4, 6, 8};
+    private static final int[] SIZES = {1, 2, 3, 4, 6, 8, 12, 16, 24};
 
     ControlScreen(ScreenBlockEntity be) {
         super(Component.translatable("block.chorus.screen"));
