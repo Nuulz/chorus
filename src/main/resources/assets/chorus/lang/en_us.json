@@ -54,5 +54,7 @@
   "chorus.cast.no_frames": "No picture from that window yet. Check the screen capture in your desktop.",
   "chorus.cast.frames": "frames",
   "chorus.size": "Size: %s blocks wide",
-  "chorus.cast.captured": "captured"
+  "chorus.cast.captured": "captured",
+  "chorus.cast.hear_projector": "Hear it from the projector",
+  "chorus.cast.hint_projector": "Muted on your PC; you hear it in the game, a few seconds late."
 }

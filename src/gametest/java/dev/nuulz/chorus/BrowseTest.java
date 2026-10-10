@@ -30,6 +30,12 @@ public class BrowseTest implements FabricClientGameTest {
             ctx.waitTicks(20 * 3);
             sv.runOnServer(s -> System.out.println("chorus-test shared url: " + ((ScreenBlockEntity) s.overworld().getBlockEntity(ScreenTest.POS)).url));
             shot(ctx, out, "browse_shared_world");
+            ctx.runOnClient(mc -> {
+                dev.nuulz.chorus.client.ClientConfig.set("cast_hear_projector", true);
+                mc.gui.setScreen(new dev.nuulz.chorus.client.CastScreen((ScreenBlockEntity) mc.level.getBlockEntity(ScreenTest.POS)));
+            });
+            ctx.waitTicks(5);
+            shot(ctx, out, "cast_screen");
             ctx.runOnClient(mc -> mc.gui.setScreen(new dev.nuulz.chorus.client.SettingsScreen(null)));
             ctx.waitTicks(5);
             shot(ctx, out, "settings");

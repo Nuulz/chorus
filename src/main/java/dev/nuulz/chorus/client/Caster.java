@@ -59,6 +59,12 @@ public final class Caster {
 
     private record Element(int kind, byte[] data) {}
 
+    /** Your own projector plays your cast only when the app's sound goes nowhere else (no echo, no loop). */
+    static boolean hearOwnProjector() {
+        AudioRoute a = audio;
+        return running && a != null && a.onlyInCast();
+    }
+
     static boolean windows() { return System.getProperty("os.name").toLowerCase().contains("windows"); }
 
     static boolean supported() {
@@ -184,7 +190,7 @@ public final class Caster {
                 video = gstreamer(List.of("pipewiresrc", "path=" + portal.node, "always-copy=true"), W, H);
                 ff.addAll(List.of("-f", "rawvideo", "-pix_fmt", "yuv420p", "-video_size", W + "x" + H, "-framerate", "" + FPS,
                     "-thread_queue_size", "64", "-i", "pipe:0"));
-                audio = new AudioRoute(app);
+                audio = new AudioRoute(app, !ClientConfig.hearProjector());
                 sound = audio.source != null;
                 if (sound) ff.addAll(List.of("-f", "pulse", "-thread_queue_size", "1024", "-i", audio.source));
             }

@@ -11,13 +11,13 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /** Start or stop sharing your screen on this Chorus screen: what to show, its quality, and the sound. */
-final class CastScreen extends Screen {
+public final class CastScreen extends Screen {
     private static final String DESKTOP = "desktop", WINDOW = "window:";
     private final ScreenBlockEntity be;
     private String app = AudioRoute.NONE;
     private String source = DESKTOP;
 
-    CastScreen(ScreenBlockEntity be) {
+    public CastScreen(ScreenBlockEntity be) {
         super(Component.translatable("chorus.cast"));
         this.be = be;
     }
@@ -48,6 +48,8 @@ final class CastScreen extends Screen {
                     id.equals(AudioRoute.NONE) ? Caster.tr("audio_none") : id.equals(AudioRoute.ALL) ? Caster.tr("audio_all") : apps.get(id)), app)
                 .withValues(audio)
                 .create(x, y, w, 20, Component.translatable("chorus.cast.audio"), (b, v) -> app = v));
+            if (!Caster.windows()) addRenderableWidget(CycleButton.onOffBuilder(ClientConfig.hearProjector())
+                .create(x, y + 56, w, 20, Component.translatable("chorus.cast.hear_projector"), (b, on) -> ClientConfig.set("cast_hear_projector", on)));
             addRenderableWidget(CycleButton.<String>builder(id -> Component.literal(qualityLabel(id)), ClientConfig.castQuality())
                 .withValues(java.util.Arrays.stream(Caster.QUALITIES).map(Caster.Quality::id).toList())
                 .create(x, y + 28, w, 20, Component.translatable("chorus.cast.quality"), (b, v) -> ClientConfig.set("cast_quality", v)));
@@ -56,7 +58,7 @@ final class CastScreen extends Screen {
             if (Caster.running) Caster.stop();
             else Caster.start(be.getBlockPos(), app, source);
             minecraft.gui.setScreen(new net.minecraft.client.gui.screens.PauseScreen(true));
-        }).bounds(x, y + 56, w, 20).build());
+        }).bounds(x, y + (Caster.running ? 0 : 84), w, 20).build());
     }
 
     static String qualityLabel(String id) {
@@ -75,8 +77,11 @@ final class CastScreen extends Screen {
             return;
         }
         g.centeredText(font, title, cx, y - 14, 0xFFFFFFFF);
-        if (!Caster.running) g.centeredText(font, Component.translatable("chorus.cast.hint"), cx, height / 2 + 26, 0xFFAAAAAA);
-        g.centeredText(font, Component.literal(Caster.status), cx, height / 2 + 40, 0xFF88CCFF);
+        if (!Caster.running) {
+            g.centeredText(font, Component.translatable(ClientConfig.hearProjector() && !Caster.windows()
+                ? "chorus.cast.hint_projector" : "chorus.cast.hint"), cx, height / 2 + 76, 0xFFAAAAAA);
+        }
+        g.centeredText(font, Component.literal(Caster.status), cx, height / 2 + 90, 0xFF88CCFF);
     }
 
     @Override public boolean isPauseScreen() { return false; }

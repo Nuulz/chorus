@@ -25,6 +25,9 @@ final class AudioRoute implements AutoCloseable {
     final String source;
 
     /** Apps playing sound right now: binary name → what to show. */
+    /** True when one app's sound goes only into the cast (so the projector can play it without echo). */
+    boolean onlyInCast() { return !modules.isEmpty() && !local; }
+
     static Map<String, String> apps() {
         Map<String, String> out = new LinkedHashMap<>();
         for (JsonObject in : sinkInputs()) {
@@ -37,14 +40,18 @@ final class AudioRoute implements AutoCloseable {
         return out;
     }
 
-    AudioRoute(String app) throws Exception {
+    /** Whether the chosen app is still heard on your speakers (false: only the cast carries it). */
+    final boolean local;
+
+    AudioRoute(String app, boolean local) throws Exception {
+        this.local = local;
         this.app = app;
         if (app.equals(NONE)) { source = null; return; }
         String speakers = run("pactl", "get-default-sink").trim();
         if (app.equals(ALL)) { source = speakers + ".monitor"; return; }
         modules.add(run("pactl", "load-module", "module-null-sink", "sink_name=" + SINK,
             "sink_properties=device.description=Chorus").trim());
-        modules.add(run("pactl", "load-module", "module-loopback", "source=" + SINK + ".monitor",
+        if (local) modules.add(run("pactl", "load-module", "module-loopback", "source=" + SINK + ".monitor",
             "sink=" + speakers, "latency_msec=40").trim());
         source = SINK + ".monitor";
         follow();

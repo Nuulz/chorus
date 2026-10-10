@@ -122,7 +122,8 @@ public final class Screens {
             double d = Vec3.atCenterOf(be.getBlockPos()).distanceTo(eye);
             double fall = Math.max(0, 1 - d / (radius + be.size * 2));
             double vol = fall * fall * ClientConfig.volume / 100.0;
-            if (Cast.isCast(be.url) && Cast.caster(be.url).equals(mc.player.getUUID())) vol = 0; // you hear the app itself
+            if (Cast.isCast(be.url) && Cast.caster(be.url).equals(mc.player.getUUID()) && !Caster.hearOwnProjector())
+                vol = 0; // you hear the app itself
             l.view.executeJavaScript(sync(be.positionMs(time) / 1000.0, be.playing, vol, fresh ? 0.4 : 1.5), "", 0);
         }
     }

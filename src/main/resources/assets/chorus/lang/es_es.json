@@ -54,5 +54,7 @@
   "chorus.cast.no_frames": "Todavía no llega imagen de esa ventana. Revisa la captura en tu escritorio.",
   "chorus.cast.frames": "cuadros",
   "chorus.size": "Tamaño: %s bloques de ancho",
-  "chorus.cast.captured": "capturados"
+  "chorus.cast.captured": "capturados",
+  "chorus.cast.hear_projector": "Escuchar desde el proyector",
+  "chorus.cast.hint_projector": "Se silencia en tu PC; lo oyes en el juego, unos segundos tarde."
 }
